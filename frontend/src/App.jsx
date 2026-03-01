@@ -1,14 +1,14 @@
 import React, { useState, useCallback } from "react";
-import LandingPage      from "./pages/LandingPage";
-import AuthPage         from "./pages/AuthPage";
-import ArtistDashboard  from "./pages/ArtistDashboard";
-import UserDashboard    from "./pages/UserDashboard";
-import HelperDashboard  from "./pages/HelperDashboard";
-import SoldDonatedPage  from "./pages/SoldDonatedPage";
-import CollabsPage      from "./pages/CollabsPage";
-import LoadingSpinner   from "./components/common/LoadingSpinner";
-import useAuth          from "./hooks/useAuth";
-import StartupScreen    from "./pages/StartupScreen"; // ← new import
+import LandingPage from "./pages/LandingPage";
+import AuthPage from "./pages/AuthPage";
+import ArtistDashboard from "./pages/ArtistDashboard";
+import UserDashboard from "./pages/UserDashboard";
+import HelperDashboard from "./pages/HelperDashboard";
+import SoldDonatedPage from "./pages/SoldDonatedPage";
+import CollabsPage from "./pages/CollabsPage";
+import LoadingSpinner from "./components/common/LoadingSpinner";
+import useAuth from "./hooks/useAuth";
+import StartupScreen from "./pages/StartupScreen"; // ← new import
 import "./styles/index.css";
 import AIAssistant from './components/AIAssistant';
 
@@ -48,17 +48,17 @@ const App = () => {
   }, [auth.user, currentPage, navigate]);
 
   const pages = {
-    landing:        <LandingPage onNavigate={navigate} />,
-    auth:           <AuthPage onNavigate={navigate} onAuthSuccess={handleAuthSuccess} auth={auth} />,
+    landing: <LandingPage onNavigate={navigate} />,
+    auth: <AuthPage onNavigate={navigate} onAuthSuccess={handleAuthSuccess} auth={auth} />,
 
     // Role dashboards — each gets the authenticated user object
-    artist:         auth.user ? <ArtistDashboard  {...dashProps} /> : <AuthPage onNavigate={navigate} onAuthSuccess={handleAuthSuccess} auth={auth} />,
-    user:           auth.user ? <UserDashboard    {...dashProps} /> : <AuthPage onNavigate={navigate} onAuthSuccess={handleAuthSuccess} auth={auth} />,
-    helper:         auth.user ? <HelperDashboard  {...dashProps} /> : <AuthPage onNavigate={navigate} onAuthSuccess={handleAuthSuccess} auth={auth} />,
+    artist: auth.user ? <ArtistDashboard  {...dashProps} /> : <AuthPage onNavigate={navigate} onAuthSuccess={handleAuthSuccess} auth={auth} />,
+    user: auth.user ? <UserDashboard    {...dashProps} /> : <AuthPage onNavigate={navigate} onAuthSuccess={handleAuthSuccess} auth={auth} />,
+    helper: auth.user ? <HelperDashboard  {...dashProps} /> : <AuthPage onNavigate={navigate} onAuthSuccess={handleAuthSuccess} auth={auth} />,
 
     // Shared pages — visible to all logged-in users
-    "sold-donated":     auth.user ? <SoldDonatedPage  {...dashProps} /> : <AuthPage onNavigate={navigate} onAuthSuccess={handleAuthSuccess} auth={auth} />,
-    "collaborations":   <CollabsPage onNavigate={navigate} onLogout={handleLogout} user={auth.user} />,
+    "sold-donated": auth.user ? <SoldDonatedPage  {...dashProps} /> : <AuthPage onNavigate={navigate} onAuthSuccess={handleAuthSuccess} auth={auth} />,
+    "collaborations": <CollabsPage onNavigate={navigate} onLogout={handleLogout} user={auth.user} />,
   };
 
   // ⭐ Show startup screen first
