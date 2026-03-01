@@ -51,7 +51,7 @@ const LandingPage = ({ onNavigate }) => {
   }, []);
 
   const heroIcons = [
-    { icon: Recycle,  bg: "bg-forest-100 border-forest-200", fg: "text-forest-600", label: "Recycle"     },
+    { icon: Recycle,  bg: "bg-forest-100 border-forest-200", fg: "text-forest-600", label: "Reconstruct"     },
     { icon: Palette,  bg: "bg-amber-100  border-amber-200",  fg: "text-amber-600",  label: "Create Art"  },
     { icon: Award,    bg: "bg-teal-100   border-teal-200",   fg: "text-teal-600",   label: "Earn Coins"  },
   ];
@@ -81,8 +81,8 @@ const LandingPage = ({ onNavigate }) => {
             <a href="#how" className="hover:text-forest-600 transition-colors">How It Works</a>
             <a href="#features" className="hover:text-forest-600 transition-colors">Features</a>
             <a href="#impact" className="hover:text-forest-600 transition-colors">Impact</a>
-            <a href="#artwork" className="hover:text-forest-600 transition-colors">Artworks</a>
-            <a href="#collaborations" className="hover:text-forest-600 transition-colors">Our Collaborations</a>
+            <button type="button" onClick={() => onNavigate("artworks")} className="hover:text-forest-600 transition-colors bg-transparent border-0 cursor-pointer text-inherit font-inherit p-0">Artworks</button>
+            <button type="button" onClick={() => onNavigate("collaborations")} className="hover:text-forest-600 transition-colors bg-transparent border-0 cursor-pointer text-inherit font-inherit p-0">Our Collaborations</button>
           </nav>
 
           {/* Auth buttons */}
@@ -179,20 +179,20 @@ const LandingPage = ({ onNavigate }) => {
               onClick={() => onNavigate("auth")}
               className="btn-craft text-sm py-3 px-6 shadow-md"
             >
-              <Palette size={16} /> Join as Artist
+              <Palette size={16} /> Join as an Artist
             </button>
             <button
               onClick={() => onNavigate("auth")}
               className="btn-primary text-sm py-3 px-6 shadow-md"
             >
-              <Users size={16} /> Join as User
+              <Users size={16} /> Join as an Organisation
             </button>
             <button
               onClick={() => onNavigate("auth")}
               style={{ background: "#0f6e5a" }}
               className="btn-primary text-sm py-3 px-6 shadow-md"
             >
-              <Recycle size={16} /> Join as Helper
+              <Recycle size={16} /> Join as an Agent
             </button>
           </div>
         </div>
