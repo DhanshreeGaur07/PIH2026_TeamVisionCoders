@@ -1,3 +1,6 @@
+// ============================================================
+//  LoadingSpinner.js  — Leaf-spin loading indicator
+// ============================================================
 import React from "react";
 import { Recycle } from "lucide-react";
 

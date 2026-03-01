@@ -1,35 +1,31 @@
 import React, { useState, useEffect } from "react";
 import {
   Recycle, Palette, Leaf, Globe, ArrowRight, ChevronDown,
-  Award, Star, Users, Package
+  Award, Star, Users, Package, ArrowLeft
 } from "lucide-react";
 import { platformStats } from "../data/mockData";
 
 /* ── Flow step data ── */
 const FLOW_STEPS = [
-  { emoji: "🗑️", label: "Collect",   desc: "Gather waste materials from homes & streets" },
-  { emoji: "✨", label: "Transform", desc: "Sort, clean and categorise by material type"  },
-  { emoji: "🎨", label: "Create",    desc: "Artists craft extraordinary pieces from scraps" },
-  { emoji: "💰", label: "Earn",      desc: "Fair income for pickers, artists & sellers"    },
-  { emoji: "🌱", label: "Sustain",   desc: "Close the loop — zero waste circular economy"  },
+  { emoji: "🗑️", label: "Collect", desc: "Gather waste materials from homes & streets" },
+  { emoji: "✨", label: "Transform", desc: "Sort, clean and categorise by material type" },
+  { emoji: "🎨", label: "Create", desc: "Artists craft extraordinary pieces from scraps" },
+  { emoji: "💰", label: "Earn", desc: "Fair income for pickers, artists & sellers" },
+  { emoji: "🌱", label: "Sustain", desc: "Close the loop — zero waste circular economy" },
 ];
 
 /* ── Feature cards ── */
 const FEATURES = [
-  { icon: Recycle,  color: "bg-forest-100 text-forest-600 border-forest-200", title: "Smart Recycling",   desc: "AI-assisted categorisation ensures maximum reuse value for every material." },
-  { icon: Palette,  color: "bg-amber-100  text-amber-700  border-amber-200",  title: "Artist Network",    desc: "500+ verified creators turning discarded materials into stunning artworks."  },
-  { icon: Leaf,     color: "bg-teal-100   text-teal-700   border-teal-200",   title: "Green Coins",       desc: "Earn rewards on every sustainable action — sell, donate, collect or create." },
-  { icon: Globe,    color: "bg-lime-100   text-lime-700   border-lime-200",   title: "Circular Economy",  desc: "Every transaction closes the loop — turning waste into wealth & wisdom."    },
+  { icon: Recycle, color: "bg-forest-100 text-forest-600 border-forest-200", title: "Smart Recycling", desc: "AI-assisted categorisation ensures maximum reuse value for every material." },
+  { icon: Palette, color: "bg-amber-100  text-amber-700  border-amber-200", title: "Artist Network", desc: "500+ verified creators turning discarded materials into stunning artworks." },
+  { icon: Leaf, color: "bg-teal-100   text-teal-700   border-teal-200", title: "Green Coins", desc: "Earn rewards on every sustainable action — sell, donate, collect or create." },
+  { icon: Globe, color: "bg-lime-100   text-lime-700   border-lime-200", title: "Circular Economy", desc: "Every transaction closes the loop — turning waste into wealth & wisdom." },
 ];
 
-/**
- * Landing page component.
- * @param {function} onNavigate - page routing handler
- */
-const LandingPage = ({ onNavigate }) => {
-  const [scrolled,    setScrolled]    = useState(false);
-  const [activeIcon,  setActiveIcon]  = useState(0);
-  const [activeStep,  setActiveStep]  = useState(0);
+const LandingPage = ({ onNavigate, onNavigateBack }) => {
+  const [scrolled, setScrolled] = useState(false);
+  const [activeIcon, setActiveIcon] = useState(0);
+  const [activeStep, setActiveStep] = useState(0);
 
   /* Sticky nav on scroll */
   useEffect(() => {
@@ -51,9 +47,9 @@ const LandingPage = ({ onNavigate }) => {
   }, []);
 
   const heroIcons = [
-    { icon: Recycle,  bg: "bg-forest-100 border-forest-200", fg: "text-forest-600", label: "Reconstruct"     },
-    { icon: Palette,  bg: "bg-amber-100  border-amber-200",  fg: "text-amber-600",  label: "Create Art"  },
-    { icon: Award,    bg: "bg-teal-100   border-teal-200",   fg: "text-teal-600",   label: "Earn Coins"  },
+    { icon: Recycle, bg: "bg-forest-100 border-forest-200", fg: "text-forest-600", label: "Reconstruct" },
+    { icon: Palette, bg: "bg-amber-100  border-amber-200", fg: "text-amber-600", label: "Create Art" },
+    { icon: Award, bg: "bg-teal-100   border-teal-200", fg: "text-teal-600", label: "Earn Coins" },
   ];
 
   return (
@@ -61,29 +57,30 @@ const LandingPage = ({ onNavigate }) => {
 
       {/* ───────────── TOP NAV ───────────── */}
       <header
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          scrolled ? "bg-white/95 backdrop-blur-lg shadow-sm border-b border-soil-100" : ""
-        }`}
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? "bg-white/95 backdrop-blur-lg shadow-sm border-b border-soil-100" : ""
+          }`}
       >
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-forest-500 to-forest-700 flex items-center justify-center shadow-md">
-              <Recycle size={18} className="text-white" />
+          <div className="flex items-center gap-4">
+            {/* Logo */}
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-forest-500 to-forest-700 flex items-center justify-center shadow-md">
+                <Recycle size={18} className="text-white" />
+              </div>
+              <span className="font-display font-black text-soil-900 text-lg tracking-tight">
+                SCRAP<span className="text-forest-600">·</span>CRAFTERS
+              </span>
             </div>
-            <span className="font-display font-black text-soil-900 text-lg tracking-tight">
-              SCRAP<span className="text-forest-600">·</span>CRAFTERS
-            </span>
-          </div>
 
-          {/* Nav links (desktop) */}
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-soil-600">
-            <a href="#how" className="hover:text-forest-600 transition-colors">How It Works</a>
-            <a href="#features" className="hover:text-forest-600 transition-colors">Features</a>
-            <a href="#impact" className="hover:text-forest-600 transition-colors">Impact</a>
-            <button type="button" onClick={() => onNavigate("artworks")} className="hover:text-forest-600 transition-colors bg-transparent border-0 cursor-pointer text-inherit font-inherit p-0">Artworks</button>
-            <button type="button" onClick={() => onNavigate("collaborations")} className="hover:text-forest-600 transition-colors bg-transparent border-0 cursor-pointer text-inherit font-inherit p-0">Our Collaborations</button>
-          </nav>
+            {/* Nav links (desktop) */}
+            <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-soil-600">
+              <a href="#how" className="hover:text-forest-600 transition-colors">How It Works</a>
+              <a href="#features" className="hover:text-forest-600 transition-colors">Features</a>
+              <a href="#impact" className="hover:text-forest-600 transition-colors">Impact</a>
+              <button type="button" onClick={() => onNavigate("artworks")} className="hover:text-forest-600 transition-colors bg-transparent border-0 cursor-pointer text-inherit font-inherit p-0">Artworks</button>
+              <button type="button" onClick={() => onNavigate("collaborations")} className="hover:text-forest-600 transition-colors bg-transparent border-0 cursor-pointer text-inherit font-inherit p-0">Our Collaborations</button>
+            </nav>
+          </div>
 
           {/* Auth buttons */}
           <div className="flex items-center gap-2">
@@ -105,15 +102,20 @@ const LandingPage = ({ onNavigate }) => {
 
       {/* ───────────── HERO ───────────── */}
       <section className="relative pt-36 pb-24 px-6 overflow-hidden">
+        {/* Background video placeholder */}
+        <div className="absolute inset-0 w-full h-full z-0 opacity-20 pointer-events-none">
+          <video autoPlay loop muted playsInline className="w-full h-full object-cover" src="/assets/hero-video.mp4" />
+        </div>
+
         {/* Background decorations */}
-        <div className="hero-blob w-96 h-96 bg-forest-400 top-10 -left-32"  />
-        <div className="hero-blob w-80 h-80 bg-craft-400  top-40 right-0"   />
-        <div className="hero-blob w-64 h-64 bg-teal-400   bottom-0 left-1/2"/>
+        <div className="hero-blob w-96 h-96 bg-forest-400 top-10 -left-32 z-0" />
+        <div className="hero-blob w-80 h-80 bg-craft-400  top-40 right-0 z-0" />
+        <div className="hero-blob w-64 h-64 bg-teal-400   bottom-0 left-1/2 z-0" />
 
         {/* Subtle leaf pattern overlay */}
-        <div className="absolute inset-0 bg-leaf-pattern opacity-60 pointer-events-none" />
+        <div className="absolute inset-0 bg-leaf-pattern opacity-60 pointer-events-none z-0" />
 
-        <div className="relative max-w-5xl mx-auto text-center">
+        <div className="relative max-w-5xl mx-auto text-center z-10">
 
           {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-white border border-forest-200 rounded-full px-4 py-2 text-sm font-medium text-forest-700 shadow-sm mb-8 animate-slide-up">
@@ -227,11 +229,10 @@ const LandingPage = ({ onNavigate }) => {
                 <React.Fragment key={i}>
                   <div
                     onClick={() => setActiveStep(i)}
-                    className={`flex flex-col items-center gap-3 p-6 rounded-3xl cursor-pointer transition-all duration-400 flex-1 text-center ${
-                      isActive
-                        ? "bg-forest-50 border-2 border-forest-200 shadow-md -translate-y-2"
-                        : "hover:bg-soil-50 border-2 border-transparent"
-                    }`}
+                    className={`flex flex-col items-center gap-3 p-6 rounded-3xl cursor-pointer transition-all duration-400 flex-1 text-center ${isActive
+                      ? "bg-forest-50 border-2 border-forest-200 shadow-md -translate-y-2"
+                      : "hover:bg-soil-50 border-2 border-transparent"
+                      }`}
                   >
                     <div className={`text-4xl transition-transform duration-300 ${isActive ? "scale-125" : ""}`}>{step.emoji}</div>
                     <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-xs font-bold font-mono transition-all ${isActive ? "bg-forest-600 border-forest-600 text-white" : "border-soil-300 text-soil-500"}`}>
@@ -258,7 +259,7 @@ const LandingPage = ({ onNavigate }) => {
                 <div className="text-3xl shrink-0">{step.emoji}</div>
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="w-5 h-5 rounded-full bg-forest-600 text-white text-xs flex items-center justify-center font-bold">{i+1}</span>
+                    <span className="w-5 h-5 rounded-full bg-forest-600 text-white text-xs flex items-center justify-center font-bold">{i + 1}</span>
                     <h3 className="font-semibold text-soil-900">{step.label}</h3>
                   </div>
                   <p className="text-sm text-soil-500">{step.desc}</p>
@@ -305,10 +306,10 @@ const LandingPage = ({ onNavigate }) => {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
-              { value: platformStats.itemsRecycled,  label: "Items Recycled",    icon: Recycle  },
-              { value: platformStats.artists,        label: "Creative Artists",  icon: Palette  },
-              { value: platformStats.incomeGenerated,label: "Income Generated",  icon: Award    },
-              { value: platformStats.wasteDiverted,  label: "Waste Diverted",    icon: Leaf     },
+              { value: platformStats.itemsRecycled, label: "Items Recycled", icon: Recycle },
+              { value: platformStats.artists, label: "Creative Artists", icon: Palette },
+              { value: platformStats.incomeGenerated, label: "Income Generated", icon: Award },
+              { value: platformStats.wasteDiverted, label: "Waste Diverted", icon: Leaf },
             ].map(({ value, label, icon: Icon }, i) => (
               <div key={i} className="flex flex-col items-center gap-2">
                 <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-forest-200 mb-2">

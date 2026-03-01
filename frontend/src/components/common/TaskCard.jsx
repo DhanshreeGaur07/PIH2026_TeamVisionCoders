@@ -1,4 +1,6 @@
-
+// ============================================================
+//  TaskCard.js  — Helper task card with pickup/dropoff details
+// ============================================================
 import React from "react";
 import { MapPin, CheckCircle, Truck, Clock, Zap, ArrowRight, Package } from "lucide-react";
 import Badge from "./Badge";

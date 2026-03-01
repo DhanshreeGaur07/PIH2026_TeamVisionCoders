@@ -1,3 +1,7 @@
+// ============================================================
+//  Badge.js  — Versatile status / category pill
+// ============================================================
+import React from "react";
 import { statusClasses } from "../../utils/helpers";
 
 /**

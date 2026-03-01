@@ -9,11 +9,11 @@ import React, { useState } from "react";
 import {
   Recycle, Users, Building, Palette, Leaf, ArrowRight,
   Globe, Mail, MapPin, Package, LogOut, Flame, Pen,
-  Heart, Zap, Star, ChevronRight, Factory, User
+  Heart, Zap, Star, ChevronRight, Factory, User, ArrowLeft
 } from "lucide-react";
 
 /* ═══════════════════════════════════════════
-   PARTNER DATA
+PARTNER DATA
 ═══════════════════════════════════════════ */
 const PARTNERS = [
   /* ── ART & CULTURE ───────────────────────── */
@@ -228,12 +228,22 @@ const PartnerCard = ({ partner }) => {
 /* ═══════════════════════════════════════════
    MAIN PAGE
 ═══════════════════════════════════════════ */
-const CollabsPage = () => {
+const CollabsPage = ({ onNavigate, onNavigateBack, user, onLogout }) => {
   const [activeCat, setActiveCat] = useState("all");
   const filtered = activeCat === "all" ? PARTNERS : PARTNERS.filter(p => p.category === activeCat);
 
   return (
     <div className="min-h-screen bg-[var(--clr-bg)] px-6 py-10">
+      <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
+        <button type="button" onClick={onNavigateBack} className="flex items-center gap-2 text-soil-600 hover:text-forest-600 text-sm font-medium">
+          <ArrowLeft size={18} /> Back
+        </button>
+        {user && onLogout && (
+          <button type="button" onClick={onLogout} className="btn-outline text-sm py-2 px-4 flex items-center gap-1.5">
+            <LogOut size={14} /> Log out
+          </button>
+        )}
+      </div>
       <h1 className="font-display font-black text-4xl mb-6">Collaborations</h1>
 
       <div className="flex gap-2 mb-8">

@@ -1,5 +1,5 @@
 // ============================================================
-//  ArtworksPage.jsx — Public gallery of artworks uploaded by artists
+//  ArtworksPage.js — Public gallery of artworks uploaded by artists
 // ============================================================
 import React from "react";
 import { Recycle, Palette, ArrowLeft } from "lucide-react";
@@ -23,7 +23,7 @@ const CAT_EMOJI = {
   other: "📦",
 };
 
-const ArtworksPage = ({ onNavigate }) => {
+const ArtworksPage = ({ onNavigate, onNavigateBack, user }) => {
   const { data, loading, error, refetch } = useFetch(
     () =>
       itemsAPI.getAll({
@@ -35,20 +35,20 @@ const ArtworksPage = ({ onNavigate }) => {
   );
 
   const items = data?.items || [];
+  const totalWasteKg = items.reduce((s, i) => s + (i.waste_used_kg || 0), 0);
 
   return (
     <div className="min-h-screen bg-soil-50">
-      {/* Header */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-soil-100 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               type="button"
-              onClick={() => onNavigate("landing")}
+              onClick={onNavigateBack}
               className="flex items-center gap-2 text-soil-600 hover:text-forest-600 transition-colors text-sm font-medium"
             >
               <ArrowLeft size={18} />
-              Back to home
+              Back
             </button>
 
             <div className="flex items-center gap-2">
@@ -61,30 +61,38 @@ const ArtworksPage = ({ onNavigate }) => {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => onNavigate("auth")}
-            className="btn-primary text-sm py-2 px-5"
-          >
-            Sign In
-          </button>
+          <div className="flex items-center gap-2">
+            {user && (
+              <button type="button" onClick={() => onNavigate("cart")} className="btn-outline text-sm py-2 px-4">Cart</button>
+            )}
+            <button
+              type="button"
+              onClick={() => onNavigate("auth")}
+              className="btn-primary text-sm py-2 px-5"
+            >
+              {user ? "Account" : "Sign In"}
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Content */}
       <main className="max-w-6xl mx-auto px-4 py-10">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-amber-100 border border-amber-200 flex items-center justify-center">
-            <Palette size={24} className="text-amber-700" />
+        <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 border border-amber-200 flex items-center justify-center">
+              <Palette size={24} className="text-amber-700" />
+            </div>
+            <div>
+              <h1 className="font-display font-black text-2xl text-soil-900">Artworks</h1>
+              <p className="text-soil-500 text-sm">Pieces created by artists from scrap and recycled materials</p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-display font-black text-2xl text-soil-900">
-              Artworks
-            </h1>
-            <p className="text-soil-500 text-sm">
-              Pieces created by artists from scrap and recycled materials
-            </p>
-          </div>
+          {!loading && items.length > 0 && totalWasteKg > 0 && (
+            <div className="bg-forest-50 border border-forest-200 rounded-2xl px-5 py-3">
+              <p className="text-forest-800 font-display font-bold text-lg">Waste utilised</p>
+              <p className="text-forest-600 text-sm"><strong>{totalWasteKg.toFixed(1)} kg</strong> of recycled material in these artworks</p>
+            </div>
+          )}
         </div>
 
         {loading ? (
@@ -105,35 +113,40 @@ const ArtworksPage = ({ onNavigate }) => {
               Our artists are busy turning scrap into art. Check back soon or
               sign in to list your own.
             </p>
-            <button
-              onClick={() => onNavigate("landing")}
-              className="btn-outline mt-6"
-            >
-              Back to home
-            </button>
+            <button onClick={onNavigateBack} className="btn-outline mt-6">Back</button>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {items.map((item) => {
-              const cat =
-                categoryColors[item.category] || categoryColors.other;
-
+              const cat = categoryColors[item.category] || categoryColors.other;
               return (
-                <div
+                <button
                   key={item.id}
-                  className="card overflow-hidden group hover:shadow-lg transition-all flex flex-col"
+                  type="button"
+                  onClick={() => onNavigate("artwork-detail", { artworkId: item.id })}
+                  className="card overflow-hidden group hover:shadow-lg transition-all flex flex-col text-left cursor-pointer border-0"
                 >
                   <div
                     className={`h-36 flex items-center justify-center text-4xl overflow-hidden border-b ${cat.border} ${cat.bg}`}
                   >
-                    {item.images?.[0]?.url ? (
+                    {item.images?.[0]?.url || (item.image && item.image.startsWith("http")) ? (
                       <img
-                        src={item.images[0].url}
+                        src={item.images?.[0]?.url || item.image}
+                        /* 
+                          To use a Supabase image URL from your database, you can do something like:
+                          src={item.supabase_image_url || `https://[YOUR_PROJECT_REF].supabase.co/storage/v1/object/public/artworks/${item.image_path}`}
+                        */
                         alt={item.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     ) : (
-                      CAT_EMOJI[item.category] || "🎨"
+                      <div className="flex items-center justify-center w-full h-full text-6xl">
+                        {item.image || CAT_EMOJI[item.category] || "🎨"}
+                        {/* 
+                          Example Supabase Image URL configuration (commented out):
+                          <img src={`https://your-supabase-url.supabase.co/storage/v1/object/public/artworks/${item.id}.jpg`} alt={item.title} className="w-full h-full object-cover" />
+                        */}
+                      </div>
                     )}
                   </div>
 
@@ -147,18 +160,14 @@ const ArtworksPage = ({ onNavigate }) => {
 
                     <div className="mt-auto pt-2 flex items-center justify-between">
                       <span className="font-display font-bold text-forest-700">
-                        {item.price > 0
-                          ? formatINR(item.price)
-                          : "Free"}
+                        {item.price > 0 ? formatINR(item.price) : "Free"}
                       </span>
-                      <span
-                        className={`pill border text-[10px] ${cat.bg} ${cat.text} ${cat.border}`}
-                      >
+                      <span className={`pill border text-[10px] ${cat.bg} ${cat.text} ${cat.border}`}>
                         {item.category}
                       </span>
                     </div>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
