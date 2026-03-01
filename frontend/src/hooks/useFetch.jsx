@@ -1,3 +1,12 @@
+// ============================================================
+//  hooks/useFetch.js  — Generic async data fetching hook
+//
+//  Usage:
+//    const { data, loading, error, refetch } = useFetch(
+//      () => itemsAPI.getMy(),
+//      []   // deps — re-runs when any dep changes
+//    );
+// ============================================================
 import { useState, useEffect, useCallback, useRef } from "react";
 
 /**

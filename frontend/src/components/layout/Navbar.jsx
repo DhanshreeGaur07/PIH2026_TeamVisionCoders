@@ -1,26 +1,37 @@
+// ============================================================
+//  Navbar.js  — Sticky top navigation, uses real user object
+// ============================================================
 import React, { useState } from "react";
 import {
   Recycle, Search, Bell, LogOut, Palette, User,
-  Menu, X, Leaf, Users, Package
+  Menu, X, Leaf, Users, Package, ArrowLeft
 } from "lucide-react";
 
 const ROLE_CONFIG = {
-  artist: { label: "Artist",  icon: Palette,  pill: "bg-amber-100  text-amber-800  border-amber-200",  avatar: "bg-amber-500"  },
-  user:   { label: "User",    icon: User,     pill: "bg-forest-100 text-forest-800 border-forest-200", avatar: "bg-forest-500" },
-  helper: { label: "Helper",  icon: Recycle,  pill: "bg-teal-100   text-teal-800   border-teal-200",   avatar: "bg-teal-600"   },
+  artist: { label: "Artist", icon: Palette, pill: "bg-amber-100  text-amber-800  border-amber-200", avatar: "bg-amber-500" },
+  user: { label: "User", icon: User, pill: "bg-forest-100 text-forest-800 border-forest-200", avatar: "bg-forest-500" },
+  helper: { label: "Helper", icon: Recycle, pill: "bg-teal-100   text-teal-800   border-teal-200", avatar: "bg-teal-600" },
+  organisation: { label: "Organisation", icon: Users, pill: "bg-indigo-100 text-indigo-800 border-indigo-200", avatar: "bg-indigo-600" },
 };
 
-const Navbar = ({ role, user, onLogout, onNavigate }) => {
+const Navbar = ({ role, user, onLogout, onNavigate, onNavigateBack }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const cfg     = ROLE_CONFIG[role] || ROLE_CONFIG.user;
+  const cfg = ROLE_CONFIG[role] || ROLE_CONFIG.user;
   const RoleIcon = cfg.icon;
   const displayName = user?.name || "User";
-  const coins       = user?.green_coins ?? 0;
+  const coins = user?.green_coins ?? 0;
 
   return (
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-lg border-b border-soil-100 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
 
+        {/* Back */}
+        {onNavigateBack && (
+          <button onClick={onNavigateBack} className="flex items-center gap-1.5 text-soil-500 hover:text-forest-600 text-sm font-medium shrink-0" aria-label="Back">
+            <ArrowLeft size={18} />
+            <span className="hidden sm:inline">Back</span>
+          </button>
+        )}
         {/* Logo */}
         <button onClick={() => onNavigate("landing")}
           className="flex items-center gap-2 shrink-0 group" aria-label="Home">
@@ -42,30 +53,22 @@ const Navbar = ({ role, user, onLogout, onNavigate }) => {
         )}
 
         <div className="ml-auto flex items-center gap-2">
-          {/* Quick nav links */}
-          <button onClick={() => onNavigate("sold-donated")}
-            className="hidden md:flex items-center gap-1 text-xs font-medium text-soil-500 hover:text-forest-700 hover:bg-forest-50 px-2 py-1.5 rounded-lg transition-colors">
-            <Package size={13}/> Sold &amp; Donated
-          </button>
-          <button onClick={() => onNavigate("collaborations")}
-            className="hidden md:flex items-center gap-1 text-xs font-medium text-soil-500 hover:text-forest-700 hover:bg-forest-50 px-2 py-1.5 rounded-lg transition-colors">
-            <Users size={13}/> Collaborations
-          </button>
+          {/* Quick nav links removed per request */}
 
           {/* Role pill */}
           <span className={`hidden sm:flex pill border ${cfg.pill} gap-1`}>
-            <RoleIcon size={11}/>{cfg.label}
+            <RoleIcon size={11} />{cfg.label}
           </span>
 
           {/* Bell */}
           <button className="relative w-8 h-8 flex items-center justify-center rounded-lg text-soil-500 hover:text-forest-600 hover:bg-forest-50 transition-colors">
-            <Bell size={16}/>
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-craft-500 border-2 border-white"/>
+            <Bell size={16} />
+            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-craft-500 border-2 border-white" />
           </button>
 
           {/* Coins */}
           <div className="hidden sm:flex items-center gap-1 bg-forest-50 border border-forest-100 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-forest-700">
-            <Leaf size={12}/><span>{coins}</span>
+            <Leaf size={12} /><span>{coins}</span>
           </div>
 
           {/* Avatar */}
@@ -77,13 +80,13 @@ const Navbar = ({ role, user, onLogout, onNavigate }) => {
           {/* Logout */}
           <button onClick={onLogout}
             className="hidden sm:flex items-center gap-1 text-xs font-medium text-soil-400 hover:text-red-500 hover:bg-red-50 px-2 py-1.5 rounded-lg transition-colors">
-            <LogOut size={13}/> Logout
+            <LogOut size={13} /> Logout
           </button>
 
           {/* Mobile hamburger */}
           <button onClick={() => setMobileOpen(!mobileOpen)}
             className="sm:hidden w-8 h-8 flex items-center justify-center rounded-lg text-soil-500">
-            {mobileOpen ? <X size={16}/> : <Menu size={16}/>}
+            {mobileOpen ? <X size={16} /> : <Menu size={16} />}
           </button>
         </div>
       </div>
@@ -91,18 +94,10 @@ const Navbar = ({ role, user, onLogout, onNavigate }) => {
       {/* Mobile drawer */}
       {mobileOpen && (
         <div className="sm:hidden bg-white border-t border-soil-100 px-4 py-4 flex flex-col gap-3 animate-slide-up">
-          <button onClick={() => { onNavigate("sold-donated"); setMobileOpen(false); }}
-            className="flex items-center gap-2 text-sm text-soil-700 hover:text-forest-700">
-            <Package size={15}/> Sold &amp; Donated
-          </button>
-          <button onClick={() => { onNavigate("collaborations"); setMobileOpen(false); }}
-            className="flex items-center gap-2 text-sm text-soil-700 hover:text-forest-700">
-            <Users size={15}/> Collaborations
-          </button>
-          <div className="flex items-center justify-between pt-2 border-t border-soil-100">
-            <span className={`pill border ${cfg.pill} gap-1`}><RoleIcon size={11}/>{cfg.label}</span>
+          <div className="flex items-center justify-between pt-2">
+            <span className={`pill border ${cfg.pill} gap-1`}><RoleIcon size={11} />{cfg.label}</span>
             <button onClick={onLogout} className="flex items-center gap-1 text-xs text-red-500 font-medium">
-              <LogOut size={12}/> Logout
+              <LogOut size={12} /> Logout
             </button>
           </div>
         </div>

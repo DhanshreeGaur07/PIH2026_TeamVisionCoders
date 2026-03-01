@@ -1,3 +1,9 @@
+// ============================================================
+//  hooks/useAuth.js  — Auth state + login/logout helpers
+//
+//  Provides: user, token, login(), logout(), loading, error
+//  Persists token to localStorage; re-hydrates on page reload.
+// ============================================================
 import { useState, useCallback, useEffect } from "react";
 import { authAPI, saveAuth, clearAuth, getSavedUser } from "../services/api";
 

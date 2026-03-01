@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+server/node_modules/
+
+# Environment files — never commit real secrets
+.env
+server/.env
+
+# Build outputs
+build/
+dist/
+
+# Upload directory — user files should not be in git
+server/uploads/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Testing
+coverage/

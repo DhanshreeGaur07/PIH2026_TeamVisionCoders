@@ -1,18 +1,21 @@
+// ============================================================
+//  AuthPage.js  —  Login / Register using real API
+// ============================================================
 import React, { useState } from "react";
-import { Recycle, Leaf, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Recycle, Leaf, Eye, EyeOff, AlertCircle, ArrowLeft } from "lucide-react";
 
 const ROLES = [
-  { id: "user",   emoji: "👤", label: "User",   desc: "List and donate your scrap items"     },
+  { id: "user", emoji: "👤", label: "User", desc: "List and donate your scrap items" },
   { id: "artist", emoji: "🎨", label: "Artist", desc: "Buy scrap and sell your upcycled art" },
-  { id: "helper", emoji: "♻️", label: "Helper", desc: "Pick up and deliver scrap for coins"  },
-  { id: "organisation", emoji: "🏢", label: "Organisation", desc: "Buys scraps and use them for sustainable projects"  }
+  { id: "helper", emoji: "♻️", label: "Agent", desc: "Pick up and deliver scrap for coins" },
+  { id: "organisation", emoji: "🏢", label: "Organisation", desc: "Buys scraps and use them for sustainable projects" }
 ];
 
-const AuthPage = ({ onNavigate, onAuthSuccess, auth }) => {
-  const [mode,     setMode]     = useState("login");      // "login" | "signup"
-  const [showPw,   setShowPw]   = useState(false);
-  const [role,     setRole]     = useState("user");
-  const [form,     setForm]     = useState({ name: "", email: "", password: "" });
+const AuthPage = ({ onNavigate, onNavigateBack, onAuthSuccess, auth }) => {
+  const [mode, setMode] = useState("login");      // "login" | "signup"
+  const [showPw, setShowPw] = useState(false);
+  const [role, setRole] = useState("user");
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [localErr, setLocalErr] = useState("");
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
@@ -76,8 +79,8 @@ const AuthPage = ({ onNavigate, onAuthSuccess, auth }) => {
           <div className="grid grid-cols-3 gap-3 pt-2">
             {[
               { val: "12K+", label: "Items Recycled" },
-              { val: "3.2K", label: "Artists"         },
-              { val: "₹8L+", label: "Income Generated"},
+              { val: "3.2K", label: "Artists" },
+              { val: "₹8L+", label: "Income Generated" },
             ].map(s => (
               <div key={s.label} className="bg-white/10 border border-white/20 rounded-2xl p-3 text-center">
                 <p className="font-display font-black text-white text-xl">{s.val}</p>
@@ -95,6 +98,9 @@ const AuthPage = ({ onNavigate, onAuthSuccess, auth }) => {
       {/* ── Right panel — form ── */}
       <div className="flex-1 flex items-center justify-center px-6 py-12 bg-[var(--clr-bg)]">
         <div className="w-full max-w-md">
+          <button type="button" onClick={onNavigateBack} className="flex items-center gap-2 text-soil-500 hover:text-forest-600 text-sm font-medium mb-6">
+            <ArrowLeft size={18} /> Back
+          </button>
 
           {/* Mobile logo */}
           <div className="flex items-center gap-2 mb-8 lg:hidden">
@@ -108,9 +114,8 @@ const AuthPage = ({ onNavigate, onAuthSuccess, auth }) => {
           <div className="flex bg-soil-100 border border-soil-200 rounded-2xl p-1 mb-7">
             {["login", "signup"].map(m => (
               <button key={m} onClick={() => { setMode(m); setLocalErr(""); auth.setError(null); }}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-semibold capitalize transition-all ${
-                  mode === m ? "bg-white text-soil-900 shadow-sm border border-soil-200" : "text-soil-500 hover:text-soil-800"
-                }`}>
+                className={`flex-1 py-2.5 rounded-xl text-sm font-semibold capitalize transition-all ${mode === m ? "bg-white text-soil-900 shadow-sm border border-soil-200" : "text-soil-500 hover:text-soil-800"
+                  }`}>
                 {m === "login" ? "Sign In" : "Create Account"}
               </button>
             ))}
@@ -196,11 +201,10 @@ const AuthPage = ({ onNavigate, onAuthSuccess, auth }) => {
                 <div className="grid grid-cols-3 gap-2">
                   {ROLES.map(r => (
                     <button type="button" key={r.id} onClick={() => setRole(r.id)}
-                      className={`p-3 rounded-2xl border-2 text-center transition-all ${
-                        role === r.id
-                          ? "border-forest-500 bg-forest-50 shadow-sm"
-                          : "border-soil-200 bg-white hover:border-forest-300"
-                      }`}>
+                      className={`p-3 rounded-2xl border-2 text-center transition-all ${role === r.id
+                        ? "border-forest-500 bg-forest-50 shadow-sm"
+                        : "border-soil-200 bg-white hover:border-forest-300"
+                        }`}>
                       <div className="text-2xl mb-1">{r.emoji}</div>
                       <p className={`text-xs font-bold ${role === r.id ? "text-forest-700" : "text-soil-700"}`}>{r.label}</p>
                       <p className="text-[10px] text-soil-400 mt-0.5 leading-tight hidden sm:block">{r.desc}</p>
@@ -218,6 +222,14 @@ const AuthPage = ({ onNavigate, onAuthSuccess, auth }) => {
                 : mode === "login" ? "Sign In" : "Create Account"
               }
             </button>
+
+            {/* Sign in with Google — placeholder */}
+            <div className="mt-4">
+              <button type="button" disabled className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-soil-200 bg-soil-50 text-soil-500 cursor-not-allowed text-sm font-medium">
+                <span className="w-5 h-5 rounded-full bg-white border border-soil-200 flex items-center justify-center text-xs">G</span>
+                Sign in with Google
+              </button>
+            </div>
           </form>
 
           {/* Divider / toggle */}
@@ -229,10 +241,8 @@ const AuthPage = ({ onNavigate, onAuthSuccess, auth }) => {
             </button>
           </p>
 
-          {/* Back to landing */}
-          <button onClick={() => onNavigate("landing")}
-            className="w-full text-center text-xs text-soil-400 hover:text-soil-600 mt-4 transition-colors">
-            ← Back to home
+          <button onClick={onNavigateBack} className="w-full text-center text-xs text-soil-400 hover:text-soil-600 mt-4 transition-colors">
+            ← Back
           </button>
         </div>
       </div>

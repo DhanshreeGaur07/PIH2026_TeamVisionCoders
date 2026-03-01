@@ -1,3 +1,6 @@
+// ============================================================
+//  UploadForm.js  — Sell / Donate item upload form
+// ============================================================
 import React, { useState, useRef } from "react";
 import { Camera, Upload, CheckCircle, X } from "lucide-react";
 
