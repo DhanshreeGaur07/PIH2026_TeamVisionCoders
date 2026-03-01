@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:typed_data';
 import '../../providers/auth_provider.dart';
 import '../../providers/scrap_provider.dart';
 import '../../providers/product_provider.dart';
 import '../marketplace/marketplace_screen.dart';
 import '../common/profile_screen.dart';
+import '../user/wallet_screen.dart';
 
 class ArtistDashboard extends StatefulWidget {
   const ArtistDashboard({super.key});
@@ -69,6 +72,7 @@ class _ArtistHomeState extends State<_ArtistHome> {
   final _supabase = Supabase.instance.client;
   List<Map<String, dynamic>> _myProducts = [];
   List<Map<String, dynamic>> _contracts = [];
+  List<Map<String, dynamic>> _acceptedRequests = [];
   bool _loading = true;
 
   @override
@@ -83,6 +87,9 @@ class _ArtistHomeState extends State<_ArtistHome> {
       final prods = await context.read<ProductProvider>().fetchArtistProducts(
         auth.userId!,
       );
+      final accepted = await context
+          .read<ScrapProvider>()
+          .fetchAcceptedRequests(auth.userId!);
       final contracts = await _supabase
           .from('artist_contracts')
           .select('*, user:profiles!artist_contracts_user_id_fkey(name)')
@@ -92,6 +99,7 @@ class _ArtistHomeState extends State<_ArtistHome> {
       if (mounted) {
         setState(() {
           _myProducts = prods;
+          _acceptedRequests = accepted;
           _contracts = List<Map<String, dynamic>>.from(contracts);
           _loading = false;
         });
@@ -108,6 +116,14 @@ class _ArtistHomeState extends State<_ArtistHome> {
         title: const Text('Artist Studio'),
         backgroundColor: const Color(0xFF6A1B9A),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.account_balance_wallet),
+            tooltip: 'Wallet',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const WalletScreen()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.person_outline),
             onPressed: () => Navigator.push(
@@ -155,12 +171,111 @@ class _ArtistHomeState extends State<_ArtistHome> {
                     children: [
                       _Stat(label: 'Products', value: '${_myProducts.length}'),
                       const SizedBox(width: 12),
+                      _Stat(
+                        label: 'Active Pickups',
+                        value: '${_acceptedRequests.length}',
+                      ),
+                      const SizedBox(width: 12),
                       _Stat(label: 'Contracts', value: '${_contracts.length}'),
                     ],
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 20),
+
+            // Active Pickups section
+            Text(
+              'Active Pickups',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+
+            if (_loading)
+              const Center(child: CircularProgressIndicator())
+            else if (_acceptedRequests.isEmpty)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    'No active pickups. Accept requests from the Pickups tab!',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                ),
+              )
+            else
+              ..._acceptedRequests.map(
+                (req) => Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: req['image_url'] != null
+                              ? Image.network(
+                                  req['image_url'],
+                                  width: 56,
+                                  height: 56,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) =>
+                                      const CircleAvatar(
+                                        backgroundColor: Color(0xFFE1BEE7),
+                                        child: Icon(
+                                          Icons.recycling,
+                                          color: Color(0xFF6A1B9A),
+                                        ),
+                                      ),
+                                )
+                              : const CircleAvatar(
+                                  backgroundColor: Color(0xFFE1BEE7),
+                                  child: Icon(
+                                    Icons.recycling,
+                                    color: Color(0xFF6A1B9A),
+                                  ),
+                                ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${req['scrap_type'].toString().toUpperCase()} - ${req['weight_kg']}kg',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                req['profiles']?['name'] ?? 'User',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => _completePickup(req),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                          ),
+                          child: const Text(
+                            'Complete',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             const SizedBox(height: 20),
 
             Text(
@@ -261,6 +376,32 @@ class _ArtistHomeState extends State<_ArtistHome> {
           .update({'status': status})
           .eq('id', contractId);
       _loadData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _completePickup(Map<String, dynamic> req) async {
+    try {
+      final result = await context.read<ScrapProvider>().completeRequest(
+        req['id'],
+        context.read<AuthProvider>().userId!,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Pickup completed! User earned ${result['coins_earned']} coins',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _loadData();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -401,34 +542,115 @@ class _PickupRequestsState extends State<_PickupRequests> {
                         final req = filteredRequests[i];
                         return Card(
                           margin: const EdgeInsets.only(bottom: 12),
-                          child: ListTile(
-                            leading: const CircleAvatar(
-                              child: Icon(Icons.recycling),
-                            ),
-                            title: Text(
-                              '${req['scrap_type'].toString().toUpperCase()} - ${req['weight_kg']}kg',
-                            ),
-                            subtitle: Text(req['profiles']?['name'] ?? 'User'),
-                            trailing: ElevatedButton(
-                              onPressed: () async {
-                                await scrap.acceptRequest(
-                                  req['id'],
-                                  context.read<AuthProvider>().userId!,
-                                );
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Request accepted!'),
-                                      backgroundColor: Colors.green,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: req['image_url'] != null
+                                          ? Image.network(
+                                              req['image_url'],
+                                              width: 48,
+                                              height: 48,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) =>
+                                                  const CircleAvatar(
+                                                    child: Icon(
+                                                      Icons.recycling,
+                                                    ),
+                                                  ),
+                                            )
+                                          : const CircleAvatar(
+                                              child: Icon(Icons.recycling),
+                                            ),
                                     ),
-                                  );
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF6A1B9A),
-                                foregroundColor: Colors.white,
-                              ),
-                              child: const Text('Accept'),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${req['scrap_type'].toString().toUpperCase()} - ${req['weight_kg']}kg',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                          Text(
+                                            req['profiles']?['name'] ?? 'User',
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (req['description'] != null) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    req['description'],
+                                    style: TextStyle(color: Colors.grey[700]),
+                                  ),
+                                ],
+                                if (req['pickup_address'] != null) ...[
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.location_on,
+                                        size: 14,
+                                        color: Colors.grey[500],
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          req['pickup_address'],
+                                          style: TextStyle(
+                                            color: Colors.grey[500],
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () async {
+                                      await scrap.acceptRequest(
+                                        req['id'],
+                                        context.read<AuthProvider>().userId!,
+                                      );
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Request accepted!'),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    icon: const Icon(Icons.check),
+                                    label: const Text('Accept Pickup'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF6A1B9A),
+                                      foregroundColor: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         );
@@ -513,12 +735,29 @@ class _MyProductsState extends State<_MyProducts> {
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),
                     child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.purple.shade50,
-                        child: const Icon(
-                          Icons.shopping_bag,
-                          color: Colors.purple,
-                        ),
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: p['image_url'] != null
+                            ? Image.network(
+                                p['image_url'],
+                                width: 48,
+                                height: 48,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => CircleAvatar(
+                                  backgroundColor: Colors.purple.shade50,
+                                  child: const Icon(
+                                    Icons.shopping_bag,
+                                    color: Colors.purple,
+                                  ),
+                                ),
+                              )
+                            : CircleAvatar(
+                                backgroundColor: Colors.purple.shade50,
+                                child: const Icon(
+                                  Icons.shopping_bag,
+                                  color: Colors.purple,
+                                ),
+                              ),
                       ),
                       title: Text(p['name']),
                       subtitle: Text(p['description'] ?? ''),
@@ -552,99 +791,162 @@ class _MyProductsState extends State<_MyProducts> {
     final nameCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     final priceCtrl = TextEditingController();
+    final stockCtrl = TextEditingController(text: '1');
     String scrapType = 'iron';
+    Uint8List? selectedImageBytes;
+    String? selectedImageExt;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Create Product'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Product Name'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: descCtrl,
-                decoration: const InputDecoration(labelText: 'Description'),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: priceCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Price (Scrap Coins)',
-                ),
-              ),
-              const SizedBox(height: 8),
-              StatefulBuilder(
-                builder: (context, setDialogState) =>
-                    DropdownButtonFormField<String>(
-                      value: scrapType,
-                      decoration: const InputDecoration(
-                        labelText: 'Scrap Type Used',
-                      ),
-                      items:
-                          [
-                                'iron',
-                                'plastic',
-                                'copper',
-                                'glass',
-                                'ewaste',
-                                'other',
-                              ]
-                              .map(
-                                (t) => DropdownMenuItem(
-                                  value: t,
-                                  child: Text(t.toUpperCase()),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Create Product'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Image picker
+                GestureDetector(
+                  onTap: () async {
+                    final picker = ImagePicker();
+                    final picked = await picker.pickImage(
+                      source: ImageSource.gallery,
+                      maxWidth: 800,
+                      maxHeight: 800,
+                      imageQuality: 85,
+                    );
+                    if (picked != null) {
+                      final bytes = await picked.readAsBytes();
+                      final ext = picked.path.split('.').last;
+                      setDialogState(() {
+                        selectedImageBytes = bytes;
+                        selectedImageExt = ext;
+                      });
+                    }
+                  },
+                  child: Container(
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: selectedImageBytes != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.memory(
+                              selectedImageBytes!,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.add_photo_alternate,
+                                size: 40,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Tap to add product image',
+                                style: TextStyle(
+                                  color: Colors.grey[500],
+                                  fontSize: 13,
                                 ),
-                              )
-                              .toList(),
-                      onChanged: (v) => setDialogState(() => scrapType = v!),
-                    ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameCtrl.text.isEmpty || priceCtrl.text.isEmpty) return;
-              Navigator.pop(ctx);
-              try {
-                await context.read<ProductProvider>().createProduct(
-                  artistId: context.read<AuthProvider>().userId!,
-                  name: nameCtrl.text,
-                  description: descCtrl.text.isEmpty ? null : descCtrl.text,
-                  priceCoins: int.parse(priceCtrl.text),
-                  scrapTypeUsed: scrapType,
-                );
-                _loadProducts();
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6A1B9A),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Product Name'),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: descCtrl,
+                  decoration: const InputDecoration(labelText: 'Description'),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: priceCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Price (Scrap Coins per unit)',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: stockCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Stock Quantity (units available)',
+                    hintText: 'e.g. 10',
+                    suffixText: 'units',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: scrapType,
+                  decoration: const InputDecoration(
+                    labelText: 'Scrap Type Used',
+                  ),
+                  items:
+                      ['iron', 'plastic', 'copper', 'glass', 'ewaste', 'other']
+                          .map(
+                            (t) => DropdownMenuItem(
+                              value: t,
+                              child: Text(t.toUpperCase()),
+                            ),
+                          )
+                          .toList(),
+                  onChanged: (v) => setDialogState(() => scrapType = v!),
+                ),
+              ],
             ),
-            child: const Text('Create'),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameCtrl.text.isEmpty || priceCtrl.text.isEmpty) return;
+                Navigator.pop(ctx);
+                try {
+                  await context.read<ProductProvider>().createProduct(
+                    artistId: context.read<AuthProvider>().userId!,
+                    name: nameCtrl.text,
+                    description: descCtrl.text.isEmpty ? null : descCtrl.text,
+                    priceCoins: int.parse(priceCtrl.text),
+                    stockQuantity: int.tryParse(stockCtrl.text) ?? 1,
+                    scrapTypeUsed: scrapType,
+                    imageBytes: selectedImageBytes,
+                    imageExt: selectedImageExt,
+                  );
+                  _loadProducts();
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6A1B9A),
+              ),
+              child: const Text('Create'),
+            ),
+          ],
+        ),
       ),
     );
   }

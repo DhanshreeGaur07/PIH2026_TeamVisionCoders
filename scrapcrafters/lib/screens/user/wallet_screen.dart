@@ -64,12 +64,12 @@ class _WalletScreenState extends State<WalletScreen> {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'Your Balance',
+                    'Total Scrap Coins',
                     style: TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${coins.balance}',
+                    '${coins.balance + coins.pendingCoins}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 48,
@@ -80,38 +80,86 @@ class _WalletScreenState extends State<WalletScreen> {
                     'Scrap Coins',
                     style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
-                  if (coins.pendingCoins > 0) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.hourglass_empty,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '+${coins.pendingCoins} Pending',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
                     ),
-                  ],
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Column(
+                          children: [
+                            const Icon(
+                              Icons.check_circle,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${coins.balance}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                            const Text(
+                              'Earned',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(width: 1, height: 40, color: Colors.white38),
+                        Column(
+                          children: [
+                            const Icon(
+                              Icons.hourglass_empty,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${coins.pendingCoins}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                            const Text(
+                              'Pending',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            ElevatedButton.icon(
+              onPressed: () => _showBuyCoinsDialog(context),
+              icon: const Icon(Icons.add_shopping_cart),
+              label: const Text('Buy Scrap Coins (Razorpay Simulator)'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6A1B9A),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
               ),
             ),
             const SizedBox(height: 24),
@@ -191,5 +239,139 @@ class _WalletScreenState extends State<WalletScreen> {
     final dt = DateTime.tryParse(dateStr);
     if (dt == null) return dateStr;
     return '${dt.day}/${dt.month}/${dt.year} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  void _showBuyCoinsDialog(BuildContext context) {
+    final amountCtrl = TextEditingController(text: '1000'); // Default ₹1000
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            final inr = double.tryParse(amountCtrl.text) ?? 0;
+            final coins = (inr * 10).toInt(); // ₹1 = 10 coins
+
+            return AlertDialog(
+              title: const Text('Buy Scrap Coins'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('1 Scrap Coin = ₹0.10 (₹1 = 10 Coins)'),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: amountCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Amount in INR (₹)',
+                      prefixText: '₹ ',
+                    ),
+                    onChanged: (val) {
+                      setDialogState(() {});
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'You will get:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          '$coins Coins',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.purple,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: coins > 0
+                      ? () async {
+                          Navigator.pop(ctx);
+                          _processPayment(inr, coins);
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue, // Razorpay blue
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Pay with Razorpay'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _processPayment(double inr, int coins) async {
+    // Show a simulated payment loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Processing payment securely...'),
+          ],
+        ),
+      ),
+    );
+
+    // Simulate network delay
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (mounted) {
+      Navigator.pop(context); // Close loading dialog
+
+      final auth = context.read<AuthProvider>();
+      if (auth.userId != null) {
+        try {
+          await context.read<CoinProvider>().purchaseCoins(
+            auth.userId!,
+            inr,
+            coins,
+          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Payment successful! Coins added.'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Payment failed: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
+    }
   }
 }

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/scrap_provider.dart';
 import '../../providers/industry_provider.dart';
 import '../marketplace/marketplace_screen.dart';
 import '../common/profile_screen.dart';
+import '../user/wallet_screen.dart';
 
 class DealerDashboard extends StatefulWidget {
   const DealerDashboard({super.key});
@@ -103,6 +105,14 @@ class _DealerHomeState extends State<_DealerHome> {
       appBar: AppBar(
         title: const Text('Dealer Dashboard'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.account_balance_wallet),
+            tooltip: 'Wallet',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const WalletScreen()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.person_outline),
             onPressed: () => Navigator.push(
@@ -247,22 +257,67 @@ class _DealerHomeState extends State<_DealerHome> {
               ..._acceptedRequests.map(
                 (req) => Card(
                   margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: const CircleAvatar(child: Icon(Icons.recycling)),
-                    title: Text(
-                      '${req['scrap_type'].toString().toUpperCase()} - ${req['weight_kg']}kg',
-                    ),
-                    subtitle: Text(req['profiles']?['name'] ?? 'User'),
-                    trailing: ElevatedButton(
-                      onPressed: () => _completePickup(req),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                      ),
-                      child: const Text(
-                        'Complete',
-                        style: TextStyle(fontSize: 12),
-                      ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: req['image_url'] != null
+                                  ? Image.network(
+                                      req['image_url'],
+                                      width: 56,
+                                      height: 56,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) =>
+                                          const CircleAvatar(
+                                            child: Icon(Icons.recycling),
+                                          ),
+                                    )
+                                  : const CircleAvatar(
+                                      child: Icon(Icons.recycling),
+                                    ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${req['scrap_type'].toString().toUpperCase()} - ${req['weight_kg']}kg',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    req['profiles']?['name'] ?? 'User',
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => _completePickup(req),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                              ),
+                              child: const Text(
+                                'Complete',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -452,12 +507,32 @@ class _PickupRequestsState extends State<_PickupRequests> {
                               children: [
                                 Row(
                                   children: [
-                                    CircleAvatar(
-                                      backgroundColor: Colors.green.shade50,
-                                      child: const Icon(
-                                        Icons.recycling,
-                                        color: Colors.green,
-                                      ),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: req['image_url'] != null
+                                          ? Image.network(
+                                              req['image_url'],
+                                              width: 48,
+                                              height: 48,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) =>
+                                                  CircleAvatar(
+                                                    backgroundColor:
+                                                        Colors.green.shade50,
+                                                    child: const Icon(
+                                                      Icons.recycling,
+                                                      color: Colors.green,
+                                                    ),
+                                                  ),
+                                            )
+                                          : CircleAvatar(
+                                              backgroundColor:
+                                                  Colors.green.shade50,
+                                              child: const Icon(
+                                                Icons.recycling,
+                                                color: Colors.green,
+                                              ),
+                                            ),
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
@@ -572,11 +647,34 @@ class _IndustryRequirementsState extends State<_IndustryRequirements> {
   List<Map<String, dynamic>> _requirements = [];
   List<Map<String, dynamic>> _inventory = [];
   bool _loading = true;
+  RealtimeChannel? _reqChannel;
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _setupRealtime();
+  }
+
+  @override
+  void dispose() {
+    _reqChannel?.unsubscribe();
+    super.dispose();
+  }
+
+  void _setupRealtime() {
+    final supabase = Supabase.instance.client;
+    _reqChannel = supabase
+        .channel('industry_requirements_realtime')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'industry_requirements',
+          callback: (payload) {
+            _loadData(); // Auto-refresh when any requirement changes
+          },
+        )
+        .subscribe();
   }
 
   Future<void> _loadData() async {
@@ -635,6 +733,7 @@ class _IndustryRequirementsState extends State<_IndustryRequirements> {
                         );
                         final remaining = required - fulfilled;
                         final progress = fulfilled / required;
+                        final isClosed = remaining <= 0;
 
                         return Card(
                           margin: const EdgeInsets.only(bottom: 12),
@@ -663,13 +762,19 @@ class _IndustryRequirementsState extends State<_IndustryRequirements> {
                                     ),
                                     Chip(
                                       label: Text(
-                                        req['status'].toString().toUpperCase(),
+                                        isClosed
+                                            ? 'FULFILLED'
+                                            : req['status']
+                                                  .toString()
+                                                  .toUpperCase(),
                                         style: const TextStyle(
                                           fontSize: 10,
                                           color: Colors.white,
                                         ),
                                       ),
-                                      backgroundColor: req['status'] == 'open'
+                                      backgroundColor: isClosed
+                                          ? Colors.blue
+                                          : req['status'] == 'open'
                                           ? Colors.green
                                           : Colors.orange,
                                       padding: EdgeInsets.zero,
@@ -683,9 +788,9 @@ class _IndustryRequirementsState extends State<_IndustryRequirements> {
                                 ),
                                 const SizedBox(height: 8),
                                 LinearProgressIndicator(
-                                  value: progress,
+                                  value: progress.clamp(0.0, 1.0),
                                   backgroundColor: Colors.grey[200],
-                                  color: Colors.green,
+                                  color: isClosed ? Colors.blue : Colors.green,
                                   minHeight: 8,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
@@ -700,7 +805,7 @@ class _IndustryRequirementsState extends State<_IndustryRequirements> {
                                 if (req['price_per_kg'] != null) ...[
                                   const SizedBox(height: 4),
                                   Text(
-                                    '₹${req['price_per_kg']}/kg',
+                                    '💰 ${req['price_per_kg']} coins/kg',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w600,
                                       color: Colors.green,
@@ -711,11 +816,23 @@ class _IndustryRequirementsState extends State<_IndustryRequirements> {
                                 SizedBox(
                                   width: double.infinity,
                                   child: ElevatedButton.icon(
-                                    onPressed: () => _showFulfillDialog(req),
-                                    icon: const Icon(Icons.send),
-                                    label: const Text('Fulfill'),
+                                    onPressed: isClosed
+                                        ? null
+                                        : () => _showFulfillDialog(req),
+                                    icon: Icon(
+                                      isClosed
+                                          ? Icons.check_circle
+                                          : Icons.send,
+                                    ),
+                                    label: Text(
+                                      isClosed
+                                          ? 'Fully Supplied'
+                                          : 'Supply Scrap',
+                                    ),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blueGrey,
+                                      backgroundColor: isClosed
+                                          ? Colors.grey
+                                          : Colors.blueGrey,
                                     ),
                                   ),
                                 ),

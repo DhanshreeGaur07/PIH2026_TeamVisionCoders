@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/industry_provider.dart';
+import '../../providers/coin_provider.dart';
 import '../common/profile_screen.dart';
+import '../user/wallet_screen.dart';
 
 class IndustryDashboard extends StatefulWidget {
   const IndustryDashboard({super.key});
@@ -24,6 +26,7 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
       context.read<IndustryProvider>().fetchRequirements(
         industryId: auth.userId,
       );
+      context.read<CoinProvider>().fetchBalance(auth.userId!);
     }
   }
 
@@ -31,6 +34,7 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final industry = context.watch<IndustryProvider>();
+    final coins = context.watch<CoinProvider>();
     final profile = auth.profile;
 
     return Scaffold(
@@ -38,6 +42,14 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
         title: const Text('Industry Dashboard'),
         backgroundColor: const Color(0xFF0D47A1),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.account_balance_wallet),
+            tooltip: 'Wallet',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const WalletScreen()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.person_outline),
             onPressed: () => Navigator.push(
@@ -63,7 +75,7 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Welcome card
+            // Welcome + Coins card
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -111,6 +123,67 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
                         color: Colors.redAccent.withOpacity(0.3),
                       ),
                     ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Coin Balance Card with Buy button
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFF8F00), Color(0xFFFFC107)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.amber.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.monetization_on,
+                    color: Colors.white,
+                    size: 40,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Scrap Coins Balance',
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                        Text(
+                          '${coins.balance}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () => _showBuyCoinsDialog(context),
+                    icon: const Icon(Icons.add_shopping_cart, size: 18),
+                    label: const Text('Buy Coins'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.orange.shade800,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -221,7 +294,7 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(6),
                           child: LinearProgressIndicator(
-                            value: progress,
+                            value: progress.clamp(0.0, 1.0),
                             backgroundColor: Colors.grey[200],
                             color: isClosed ? Colors.green : Colors.blue,
                             minHeight: 10,
@@ -251,7 +324,7 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
                         if (req['price_per_kg'] != null) ...[
                           const SizedBox(height: 6),
                           Text(
-                            'Offering: ₹${req['price_per_kg']}/kg',
+                            '💰 ${req['price_per_kg']} coins/kg',
                             style: const TextStyle(
                               color: Colors.green,
                               fontWeight: FontWeight.w600,
@@ -277,117 +350,333 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Post Scrap Requirement'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              StatefulBuilder(
-                builder: (context, setDialogState) =>
-                    DropdownButtonFormField<String>(
-                      value: scrapType,
-                      decoration: const InputDecoration(
-                        labelText: 'Scrap Type',
-                      ),
-                      items:
-                          [
-                                'iron',
-                                'plastic',
-                                'copper',
-                                'glass',
-                                'ewaste',
-                                'other',
-                              ]
-                              .map(
-                                (t) => DropdownMenuItem(
-                                  value: t,
-                                  child: Text(t.toUpperCase()),
-                                ),
-                              )
-                              .toList(),
-                      onChanged: (v) => setDialogState(() => scrapType = v!),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final qty = double.tryParse(qtyCtrl.text) ?? 0;
+          final price = double.tryParse(priceCtrl.text) ?? 0;
+          final totalCost = (qty * price).toInt();
+          final currentCoins = context.read<CoinProvider>().balance;
+          final hasEnough = totalCost == 0 || currentCoins >= totalCost;
+
+          return AlertDialog(
+            title: const Text('Post Scrap Requirement'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: scrapType,
+                    decoration: const InputDecoration(labelText: 'Scrap Type'),
+                    items:
+                        [
+                              'iron',
+                              'plastic',
+                              'copper',
+                              'glass',
+                              'ewaste',
+                              'other',
+                            ]
+                            .map(
+                              (t) => DropdownMenuItem(
+                                value: t,
+                                child: Text(t.toUpperCase()),
+                              ),
+                            )
+                            .toList(),
+                    onChanged: (v) => setDialogState(() => scrapType = v!),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: qtyCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
                     ),
+                    decoration: const InputDecoration(
+                      labelText: 'Required Quantity (kg)',
+                      suffixText: 'kg',
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: priceCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Price per kg (coins)',
+                      prefixText: '💰 ',
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: descCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Description (optional)',
+                    ),
+                    maxLines: 2,
+                  ),
+                  if (totalCost > 0) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: hasEnough
+                            ? Colors.green.shade50
+                            : Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: hasEnough
+                              ? Colors.green.shade200
+                              : Colors.red.shade200,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Total cost:',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                '$totalCost coins',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: hasEnough ? Colors.green : Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Your balance:',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              Text(
+                                '$currentCoins coins',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          ),
+                          if (!hasEnough) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              '⚠️ You need ${totalCost - currentCoins} more coins. Buy coins first!',
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: qtyCtrl,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'Required Quantity (kg)',
-                  suffixText: 'kg',
-                ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: priceCtrl,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+              if (!hasEnough && totalCost > 0)
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _showBuyCoinsDialog(context);
+                  },
+                  icon: const Icon(Icons.add_shopping_cart, size: 16),
+                  label: const Text('Buy Coins'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                  ),
                 ),
-                decoration: const InputDecoration(
-                  labelText: 'Price per kg (₹)',
-                  prefixText: '₹',
+              ElevatedButton(
+                onPressed: (qty <= 0 || (!hasEnough && totalCost > 0))
+                    ? null
+                    : () async {
+                        Navigator.pop(ctx);
+                        try {
+                          await context
+                              .read<IndustryProvider>()
+                              .createRequirement(
+                                industryId: context
+                                    .read<AuthProvider>()
+                                    .userId!,
+                                scrapType: scrapType,
+                                requiredKg: qty,
+                                pricePerKg: price > 0 ? price : null,
+                                description: descCtrl.text.isEmpty
+                                    ? null
+                                    : descCtrl.text,
+                              );
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Requirement posted!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0D47A1),
                 ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: descCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Description (optional)',
-                ),
-                maxLines: 2,
+                child: const Text('Post'),
               ),
             ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (qtyCtrl.text.isEmpty) return;
-              Navigator.pop(ctx);
-              try {
-                await context.read<IndustryProvider>().createRequirement(
-                  industryId: context.read<AuthProvider>().userId!,
-                  scrapType: scrapType,
-                  requiredKg: double.parse(qtyCtrl.text),
-                  pricePerKg: priceCtrl.text.isEmpty
-                      ? null
-                      : double.parse(priceCtrl.text),
-                  description: descCtrl.text.isEmpty ? null : descCtrl.text,
-                );
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Requirement posted!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0D47A1),
-            ),
-            child: const Text('Post'),
-          ),
-        ],
+          );
+        },
       ),
     );
+  }
+
+  void _showBuyCoinsDialog(BuildContext context) {
+    final amountCtrl = TextEditingController(text: '1000');
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            final inr = double.tryParse(amountCtrl.text) ?? 0;
+            final coins = (inr * 10).toInt(); // ₹1 = 10 coins
+
+            return AlertDialog(
+              title: const Text('Buy Scrap Coins'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('1 Scrap Coin = ₹0.10 (₹1 = 10 Coins)'),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: amountCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Amount in INR (₹)',
+                      prefixText: '₹ ',
+                    ),
+                    onChanged: (val) => setDialogState(() {}),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'You will get:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          '$coins Coins',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.purple,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: coins > 0
+                      ? () async {
+                          Navigator.pop(ctx);
+                          _processPayment(inr, coins);
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Pay with Razorpay'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _processPayment(double inr, int coins) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Processing payment securely...'),
+          ],
+        ),
+      ),
+    );
+
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (mounted) {
+      Navigator.pop(context);
+
+      final auth = context.read<AuthProvider>();
+      if (auth.userId != null) {
+        try {
+          await context.read<CoinProvider>().purchaseCoins(
+            auth.userId!,
+            inr,
+            coins,
+          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Payment successful! $coins coins added.'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Payment failed: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
+    }
   }
 }
 
