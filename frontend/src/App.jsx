@@ -8,8 +8,6 @@ import HelperDashboard from "./pages/HelperDashboard";
 import SoldDonatedPage from "./pages/SoldDonatedPage";
 import CollabsPage     from "./pages/CollabsPage";
 import StartupScreen   from "./pages/StartupScreen";
-
-import AIAssistant     from "./components/AIAssistant";
 import LoadingSpinner  from "./components/common/LoadingSpinner";
 import useAuth         from "./hooks/useAuth";
 
