@@ -131,6 +131,25 @@ async def accept_scrap_request(request_id: str, req: AcceptScrapRequest):
         if partner.data["role"] not in ["dealer", "artist"]:
             raise HTTPException(status_code=403, detail="Only dealers/artists can accept requests")
 
+        # Verify partner has enough coins to pay for this scrap
+        request_record = supabase.table("scrap_requests").select("*").eq("id", request_id).single().execute()
+        if not request_record.data:
+            raise HTTPException(status_code=404, detail="Request not found")
+
+        scrap_type = request_record.data.get("scrap_type", "other")
+        weight_kg = float(request_record.data.get("weight_kg", 0))
+        multiplier = COIN_MULTIPLIERS.get(scrap_type, 10)
+        required_coins = math.floor(weight_kg * multiplier)
+
+        partner_profile = supabase.table("profiles").select("scrap_coins").eq("id", req.partner_id).single().execute()
+        partner_coins = partner_profile.data.get("scrap_coins", 0) or 0
+
+        if partner_coins < required_coins:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Insufficient coins. You need {required_coins} coins to accept this pickup, but you have {partner_coins}."
+            )
+
         result = supabase.table("scrap_requests").update({
             "partner_id": req.partner_id,
             "status": "accepted",
@@ -183,13 +202,33 @@ async def complete_scrap_request(request_id: str, req: AcceptScrapRequest):
             "scrap_coins": new_balance,
         }).eq("id", user_id).execute()
 
-        # Record transaction
+        # Record transaction for user
         supabase.table("transactions").insert({
             "user_id": user_id,
             "amount": coins_earned,
             "type": "donation_reward",
             "reference_id": request_id,
             "description": f"Earned {coins_earned} coins for donating {weight_kg}kg of {scrap_type}",
+        }).execute()
+
+        # Deduct coins from partner
+        partner_profile = supabase.table("profiles").select("scrap_coins").eq(
+            "id", req.partner_id
+        ).single().execute()
+        partner_coins = partner_profile.data.get("scrap_coins", 0) or 0
+        new_partner_balance = partner_coins - coins_earned
+
+        supabase.table("profiles").update({
+            "scrap_coins": new_partner_balance,
+        }).eq("id", req.partner_id).execute()
+
+        # Record transaction for partner
+        supabase.table("transactions").insert({
+            "user_id": req.partner_id,
+            "amount": -coins_earned,
+            "type": "pickup_cost",
+            "reference_id": request_id,
+            "description": f"Spent {coins_earned} coins to collect {weight_kg}kg of {scrap_type}",
         }).execute()
 
         # If partner is dealer, add to inventory
