@@ -1,3 +1,9 @@
+import artworkMetalKinetic from "../assets/artwork_metal_kinetic.png";
+import artworkCircuitMandala from "../assets/artwork_circuit_mandala.png";
+import artworkWoodFrame from "../assets/artwork_wood_frame.png";
+import artworkCopperChimes from "../assets/artwork_copper_chimes.png";
+import artworkPetLamp from "../assets/artwork_pet_lamp.png";
+import artworkNewspaperSculpture from "../assets/artwork_newspaper_sculpture.png";
 
 export const scrapItems = [
   { id: 1, title: "Copper Wire Bundle", category: "metal", weight: "2 kg", price: 80, image: "🔩", seller: "Ravi K.", status: "available", coins: 12 },
@@ -76,12 +82,12 @@ export const helperTasks = [
 
 /* Artworks with waste utilised (kg) for gallery & detail */
 export const artworks = [
-  { id: 101, title: "Scrap Metal Kinetic Sculpture", category: "artwork", price: 3500, image: "🔩", seller: "Ravi K.", status: "active", waste_used_kg: 12.5, medium: "Metal + Wire" },
-  { id: 102, title: "Circuit Board Mandala", category: "artwork", price: 2800, image: "💾", seller: "Priya M.", status: "active", waste_used_kg: 3.2, medium: "E-Waste" },
-  { id: 103, title: "Upcycled Wood Frame", category: "artwork", price: 1200, image: "🪵", seller: "Arjun S.", status: "active", waste_used_kg: 8, medium: "Reclaimed Wood" },
-  { id: 104, title: "Copper Wind Chimes", category: "artwork", price: 950, image: "🔩", seller: "Meena R.", status: "active", waste_used_kg: 2.1, medium: "Copper Wire" },
-  { id: 105, title: "PET Bottle Garden Lamp", category: "artwork", price: 650, image: "🫙", seller: "Sana K.", status: "active", waste_used_kg: 1.8, medium: "Plastic" },
-  { id: 106, title: "Newspaper Pulp Sculpture", category: "artwork", price: 480, image: "📰", seller: "Lata B.", status: "active", waste_used_kg: 5.5, medium: "Paper" },
+  { id: 101, title: "Scrap Metal Kinetic Sculpture", category: "artwork", price: 3500, image: "🔩", imageUrl: artworkMetalKinetic, seller: "Ravi K.", status: "active", waste_used_kg: 12.5, medium: "Metal + Wire" },
+  { id: 102, title: "Circuit Board Mandala", category: "artwork", price: 2800, image: "💾", imageUrl: artworkCircuitMandala, seller: "Priya M.", status: "active", waste_used_kg: 3.2, medium: "E-Waste" },
+  { id: 103, title: "Upcycled Wood Frame", category: "artwork", price: 1200, image: "🪵", imageUrl: artworkWoodFrame, seller: "Arjun S.", status: "active", waste_used_kg: 8, medium: "Reclaimed Wood" },
+  { id: 104, title: "Copper Wind Chimes", category: "artwork", price: 950, image: "🔩", imageUrl: artworkCopperChimes, seller: "Meena R.", status: "active", waste_used_kg: 2.1, medium: "Copper Wire" },
+  { id: 105, title: "PET Bottle Garden Lamp", category: "artwork", price: 650, image: "🫙", imageUrl: artworkPetLamp, seller: "Sana K.", status: "active", waste_used_kg: 1.8, medium: "Plastic" },
+  { id: 106, title: "Newspaper Pulp Sculpture", category: "artwork", price: 480, image: "📰", imageUrl: artworkNewspaperSculpture, seller: "Lata B.", status: "active", waste_used_kg: 5.5, medium: "Paper" },
 ];
 
 export const platformStats = {

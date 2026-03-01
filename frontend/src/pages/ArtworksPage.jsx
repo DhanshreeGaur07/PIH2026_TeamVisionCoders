@@ -129,23 +129,15 @@ const ArtworksPage = ({ onNavigate, onNavigateBack, user }) => {
                   <div
                     className={`h-36 flex items-center justify-center text-4xl overflow-hidden border-b ${cat.border} ${cat.bg}`}
                   >
-                    {item.images?.[0]?.url || (item.image && item.image.startsWith("http")) ? (
+                    {item.imageUrl ? (
                       <img
-                        src={item.images?.[0]?.url || item.image}
-                        /* 
-                          To use a Supabase image URL from your database, you can do something like:
-                          src={item.supabase_image_url || `https://[YOUR_PROJECT_REF].supabase.co/storage/v1/object/public/artworks/${item.image_path}`}
-                        */
+                        src={item.imageUrl}
                         alt={item.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     ) : (
                       <div className="flex items-center justify-center w-full h-full text-6xl">
                         {item.image || CAT_EMOJI[item.category] || "🎨"}
-                        {/* 
-                          Example Supabase Image URL configuration (commented out):
-                          <img src={`https://your-supabase-url.supabase.co/storage/v1/object/public/artworks/${item.id}.jpg`} alt={item.title} className="w-full h-full object-cover" />
-                        */}
                       </div>
                     )}
                   </div>
