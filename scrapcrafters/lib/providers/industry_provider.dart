@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/api_service.dart';
 
 class IndustryProvider extends ChangeNotifier {
   final _supabase = Supabase.instance.client;
@@ -57,60 +58,19 @@ class IndustryProvider extends ChangeNotifier {
     required String dealerId,
     required double quantityKg,
   }) async {
-    // Get requirement
-    final req = await _supabase
-        .from('industry_requirements')
-        .select('*')
-        .eq('id', requirementId)
-        .single();
-
-    final remaining =
-        double.parse(req['required_kg'].toString()) -
-        double.parse(req['fulfilled_kg'].toString());
-    final actualQty = quantityKg > remaining ? remaining : quantityKg;
-
-    // Check inventory
-    final inventory = await _supabase
-        .from('dealer_inventory')
-        .select('*')
-        .eq('dealer_id', dealerId)
-        .eq('scrap_type', req['scrap_type']);
-
-    if ((inventory as List).isEmpty ||
-        double.parse(inventory[0]['quantity_kg'].toString()) < actualQty) {
-      throw Exception('Insufficient inventory');
-    }
-
-    // Create fulfillment
-    await _supabase.from('requirement_fulfillments').insert({
-      'requirement_id': requirementId,
-      'dealer_id': dealerId,
-      'quantity_kg': actualQty,
-      'status': 'completed',
-    });
-
-    // Update inventory
-    final newInvQty =
-        double.parse(inventory[0]['quantity_kg'].toString()) - actualQty;
-    await _supabase
-        .from('dealer_inventory')
-        .update({'quantity_kg': newInvQty})
-        .eq('id', inventory[0]['id']);
-
-    // Update requirement
-    final newFulfilled =
-        double.parse(req['fulfilled_kg'].toString()) + actualQty;
-    final newStatus =
-        newFulfilled >= double.parse(req['required_kg'].toString())
-        ? 'closed'
-        : 'partially_fulfilled';
-
-    await _supabase
-        .from('industry_requirements')
-        .update({'fulfilled_kg': newFulfilled, 'status': newStatus})
-        .eq('id', requirementId);
-
+    _isLoading = true;
     notifyListeners();
+
+    try {
+      await ApiService.post(
+        '/industry/requirements/$requirementId/fulfill',
+        body: {'dealer_id': dealerId, 'quantity_kg': quantityKg},
+      );
+      await fetchOpenRequirements(); // Refresh the list
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<List<Map<String, dynamic>>> fetchOpenRequirements() async {
