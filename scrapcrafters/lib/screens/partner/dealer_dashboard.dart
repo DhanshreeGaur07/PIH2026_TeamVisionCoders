@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/glass_card.dart';
+import '../../widgets/shimmer_loading.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/scrap_provider.dart';
 import '../../providers/industry_provider.dart';
@@ -10,7 +15,6 @@ import '../user/wallet_screen.dart';
 
 class DealerDashboard extends StatefulWidget {
   const DealerDashboard({super.key});
-
   @override
   State<DealerDashboard> createState() => _DealerDashboardState();
 }
@@ -26,42 +30,46 @@ class _DealerDashboardState extends State<DealerDashboard> {
       const _IndustryRequirements(),
       const MarketplaceScreen(),
     ];
-
     return Scaffold(
       body: pages[_currentIndex],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (i) => setState(() => _currentIndex = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.local_shipping_outlined),
-            selectedIcon: Icon(Icons.local_shipping),
-            label: 'Pickups',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.factory_outlined),
-            selectedIcon: Icon(Icons.factory),
-            label: 'Industry',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.shopping_bag_outlined),
-            selectedIcon: Icon(Icons.shopping_bag),
-            label: 'Shop',
-          ),
-        ],
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: AppTheme.border, width: 2)),
+        ),
+        child: NavigationBar(
+          selectedIndex: _currentIndex,
+          onDestinationSelected: (i) => setState(() => _currentIndex = i),
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard),
+              label: 'Home',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.local_shipping_outlined),
+              selectedIcon: Icon(Icons.local_shipping),
+              label: 'Pickups',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.factory_outlined),
+              selectedIcon: Icon(Icons.factory),
+              label: 'Industry',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.shopping_bag_outlined),
+              selectedIcon: Icon(Icons.shopping_bag),
+              label: 'Shop',
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
+// ─── DEALER HOME ───────────────────────────────
 class _DealerHome extends StatefulWidget {
   const _DealerHome();
-
   @override
   State<_DealerHome> createState() => _DealerHomeState();
 }
@@ -86,13 +94,12 @@ class _DealerHomeState extends State<_DealerHome> {
       final accepted = await context
           .read<ScrapProvider>()
           .fetchAcceptedRequests(auth.userId!);
-      if (mounted) {
+      if (mounted)
         setState(() {
           _inventory = inv;
           _acceptedRequests = accepted;
           _loading = false;
         });
-      }
     }
   }
 
@@ -100,6 +107,7 @@ class _DealerHomeState extends State<_DealerHome> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final profile = auth.profile;
+    final pad = AppTheme.responsivePadding(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -127,206 +135,242 @@ class _DealerHomeState extends State<_DealerHome> {
         ],
       ),
       body: RefreshIndicator(
+        color: AppTheme.primary,
         onRefresh: _loadData,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(pad),
           children: [
             // Welcome
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF37474F), Color(0xFF546E7A)],
-                ),
-                borderRadius: BorderRadius.circular(20),
-              ),
+            GlassCard(
+              padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Welcome, ${profile?['name'] ?? 'Dealer'}! 🚛',
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: AppTheme.textPrimary,
                       fontSize: 22,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 4),
                   const Text(
                     'Manage your scrap collections',
-                    style: TextStyle(color: Colors.white70),
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 14,
+                    ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   Row(
                     children: [
-                      _MiniStat(
-                        label: 'Active Pickups',
-                        value: '${_acceptedRequests.length}',
-                        icon: Icons.local_shipping,
+                      Expanded(
+                        child: GlassStatCard(
+                          icon: Icons.local_shipping,
+                          value: '${_acceptedRequests.length}',
+                          label: 'Active Pickups',
+                          iconColor: AppTheme.accent,
+                        ),
                       ),
-                      const SizedBox(width: 12),
-                      _MiniStat(
-                        label: 'Scrap Types',
-                        value: '${_inventory.length}',
-                        icon: Icons.inventory_2,
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: GlassStatCard(
+                          icon: Icons.inventory_2,
+                          value: '${_inventory.length}',
+                          label: 'Scrap Types',
+                          iconColor: AppTheme.secondary,
+                        ),
                       ),
                     ],
                   ),
                 ],
               ),
-            ),
+            ).animate().fadeIn(duration: 400.ms),
             const SizedBox(height: 20),
 
             // Inventory
-            Text(
+            const Text(
               'My Inventory',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
             ),
             const SizedBox(height: 12),
-
             if (_loading)
-              const Center(child: CircularProgressIndicator())
+              const ShimmerList(itemCount: 3, itemHeight: 60)
             else if (_inventory.isEmpty)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.inventory_2,
-                        size: 48,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'No inventory yet',
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                      const Text('Accept pickup requests to build inventory'),
-                    ],
-                  ),
+              GlassCard(
+                padding: const EdgeInsets.all(24),
+                child: const Column(
+                  children: [
+                    Icon(
+                      Icons.inventory_2,
+                      size: 40,
+                      color: AppTheme.borderLight,
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'No inventory yet',
+                      style: TextStyle(color: AppTheme.textMuted),
+                    ),
+                    Text(
+                      'Accept pickups to build inventory',
+                      style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                    ),
+                  ],
                 ),
               )
             else
               ..._inventory.map(
-                (item) => Card(
+                (item) => Container(
                   margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.blueGrey.shade50,
-                      child: const Icon(
-                        Icons.inventory_2,
-                        color: Colors.blueGrey,
-                      ),
+                  child: GlassCard(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
                     ),
-                    title: Text(item['scrap_type'].toString().toUpperCase()),
-                    trailing: Text(
-                      '${item['quantity_kg']} kg',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            const SizedBox(height: 20),
-
-            // Active pickups
-            Text(
-              'Active Pickups',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-
-            if (_acceptedRequests.isEmpty)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    'No active pickups',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                ),
-              )
-            else
-              ..._acceptedRequests.map(
-                (req) => Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
                       children: [
-                        Row(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: req['image_url'] != null
-                                  ? Image.network(
-                                      req['image_url'],
-                                      width: 56,
-                                      height: 56,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) =>
-                                          const CircleAvatar(
-                                            child: Icon(Icons.recycling),
-                                          ),
-                                    )
-                                  : const CircleAvatar(
-                                      child: Icon(Icons.recycling),
-                                    ),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blueGrey.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: Colors.blueGrey.withValues(alpha: 0.3),
+                              width: 1.5,
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${req['scrap_type'].toString().toUpperCase()} - ${req['weight_kg']}kg',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    req['profiles']?['name'] ?? 'User',
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                          ),
+                          child: const Icon(
+                            Icons.inventory_2,
+                            color: Colors.blueGrey,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            item['scrap_type'].toString().toUpperCase(),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.textPrimary,
                             ),
-                            ElevatedButton(
-                              onPressed: () => _completePickup(req),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                              ),
-                              child: const Text(
-                                'Complete',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                            ),
-                          ],
+                          ),
+                        ),
+                        Text(
+                          '${item['quantity_kg']} kg',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.primary,
+                            fontSize: 16,
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
               ),
+            const SizedBox(height: 20),
+
+            // Active Pickups
+            const Text(
+              'Active Pickups',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (_acceptedRequests.isEmpty)
+              GlassCard(
+                padding: const EdgeInsets.all(24),
+                child: const Text(
+                  'No active pickups',
+                  style: TextStyle(color: AppTheme.textMuted),
+                ),
+              )
+            else
+              ..._acceptedRequests.map(
+                (req) => Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: GlassCard(
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: req['image_url'] != null
+                              ? Image.network(
+                                  req['image_url'],
+                                  width: 50,
+                                  height: 50,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => _scrapAvatar(),
+                                )
+                              : _scrapAvatar(),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${req['scrap_type'].toString().toUpperCase()} — ${req['weight_kg']}kg',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.textPrimary,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                req['profiles']?['name'] ?? 'User',
+                                style: const TextStyle(
+                                  color: AppTheme.textMuted,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => _completePickup(req),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                          ),
+                          child: const Text(
+                            'Complete',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
+
+  Widget _scrapAvatar() => Container(
+    width: 50,
+    height: 50,
+    decoration: BoxDecoration(
+      color: AppTheme.primary.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(
+        color: AppTheme.primary.withValues(alpha: 0.3),
+        width: 1.5,
+      ),
+    ),
+    child: const Icon(Icons.recycling, color: AppTheme.primary, size: 24),
+  );
 
   Future<void> _completePickup(Map<String, dynamic> req) async {
     try {
@@ -340,72 +384,25 @@ class _DealerHomeState extends State<_DealerHome> {
             content: Text(
               'Pickup completed! User earned ${result['coins_earned']} coins',
             ),
-            backgroundColor: Colors.green,
           ),
         );
         _loadData();
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppTheme.danger,
+          ),
         );
-      }
     }
   }
 }
 
-class _MiniStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-
-  const _MiniStat({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.white70, size: 20),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                ),
-                Text(
-                  label,
-                  style: const TextStyle(color: Colors.white60, fontSize: 10),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
+// ─── PICKUP REQUESTS ───────────────────────────
 class _PickupRequests extends StatefulWidget {
   const _PickupRequests();
-
   @override
   State<_PickupRequests> createState() => _PickupRequestsState();
 }
@@ -417,18 +414,16 @@ class _PickupRequestsState extends State<_PickupRequests> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
+      if (mounted)
         context.read<ScrapProvider>().fetchAvailableRequests(
           context.read<AuthProvider>().userId!,
         );
-      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final scrap = context.watch<ScrapProvider>();
-
     final filteredRequests = _selectedFilter == 'all'
         ? scrap.availableRequests
         : scrap.availableRequests
@@ -453,15 +448,49 @@ class _PickupRequestsState extends State<_PickupRequests> {
                     'ewaste',
                     'other',
                   ].map((type) {
+                    final selected = _selectedFilter == type;
                     return Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: ChoiceChip(
-                        label: Text(type.toUpperCase()),
-                        selected: _selectedFilter == type,
-                        onSelected: (selected) {
-                          if (selected) setState(() => _selectedFilter = type);
-                        },
-                        selectedColor: Colors.green.withOpacity(0.2),
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        onTap: () => setState(() => _selectedFilter = type),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? AppTheme.primary.withValues(alpha: 0.1)
+                                : AppTheme.surface,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: selected
+                                  ? AppTheme.primary
+                                  : AppTheme.borderLight,
+                              width: 2,
+                            ),
+                            boxShadow: selected
+                                ? [
+                                    const BoxShadow(
+                                      color: AppTheme.shadow,
+                                      offset: Offset(2, 2),
+                                      blurRadius: 0,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Text(
+                            type.toUpperCase(),
+                            style: TextStyle(
+                              color: selected
+                                  ? AppTheme.primary
+                                  : AppTheme.textMuted,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
                       ),
                     );
                   }).toList(),
@@ -469,23 +498,33 @@ class _PickupRequestsState extends State<_PickupRequests> {
           ),
           Expanded(
             child: RefreshIndicator(
+              color: AppTheme.primary,
               onRefresh: () => scrap.fetchAvailableRequests(
                 context.read<AuthProvider>().userId!,
               ),
               child: scrap.isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(
+                      child: SpinKitFadingCube(
+                        color: AppTheme.primary,
+                        size: 36,
+                      ),
+                    )
                   : filteredRequests.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.inbox, size: 64, color: Colors.grey[400]),
+                          const Icon(
+                            Icons.inbox,
+                            size: 56,
+                            color: AppTheme.borderLight,
+                          ),
                           const SizedBox(height: 12),
-                          Text(
-                            'No pending requests for this filter',
+                          const Text(
+                            'No pending requests',
                             style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 16,
+                              color: AppTheme.textMuted,
+                              fontSize: 15,
                             ),
                           ),
                         ],
@@ -497,10 +536,15 @@ class _PickupRequestsState extends State<_PickupRequests> {
                       itemBuilder: (context, i) {
                         final req = filteredRequests[i];
                         final user = req['profiles'] as Map<String, dynamic>?;
-
-                        return Card(
+                        final coinCost =
+                            ((req['weight_kg'] as num) *
+                                    (ScrapProvider
+                                            .coinMultipliers[req['scrap_type']] ??
+                                        10))
+                                .floor();
+                        return Container(
                           margin: const EdgeInsets.only(bottom: 12),
-                          child: Padding(
+                          child: GlassCard(
                             padding: const EdgeInsets.all(16),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -508,7 +552,7 @@ class _PickupRequestsState extends State<_PickupRequests> {
                                 Row(
                                   children: [
                                     ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
+                                      borderRadius: BorderRadius.circular(6),
                                       child: req['image_url'] != null
                                           ? Image.network(
                                               req['image_url'],
@@ -516,23 +560,9 @@ class _PickupRequestsState extends State<_PickupRequests> {
                                               height: 48,
                                               fit: BoxFit.cover,
                                               errorBuilder: (_, __, ___) =>
-                                                  CircleAvatar(
-                                                    backgroundColor:
-                                                        Colors.green.shade50,
-                                                    child: const Icon(
-                                                      Icons.recycling,
-                                                      color: Colors.green,
-                                                    ),
-                                                  ),
+                                                  _scrapIcon(),
                                             )
-                                          : CircleAvatar(
-                                              backgroundColor:
-                                                  Colors.green.shade50,
-                                              child: const Icon(
-                                                Icons.recycling,
-                                                color: Colors.green,
-                                              ),
-                                            ),
+                                          : _scrapIcon(),
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
@@ -541,37 +571,45 @@ class _PickupRequestsState extends State<_PickupRequests> {
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            '${req['scrap_type'].toString().toUpperCase()} - ${req['weight_kg']}kg',
+                                            '${req['scrap_type'].toString().toUpperCase()} — ${req['weight_kg']}kg',
                                             style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 15,
+                                              color: AppTheme.textPrimary,
                                             ),
                                           ),
                                           Text(
                                             'From: ${user?['name'] ?? 'Unknown'} • ${user?['location'] ?? ''}',
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                              fontSize: 13,
+                                            style: const TextStyle(
+                                              color: AppTheme.textMuted,
+                                              fontSize: 12,
                                             ),
                                           ),
                                           const SizedBox(height: 4),
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.monetization_on,
-                                                color: Colors.amber,
-                                                size: 14,
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: AppTheme.accent.withValues(
+                                                alpha: 0.1,
                                               ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                'Cost: ${((req['weight_kg'] as num) * (ScrapProvider.coinMultipliers[req['scrap_type']] ?? 10)).floor()} Coins',
-                                                style: const TextStyle(
-                                                  color: Colors.amber,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 12,
-                                                ),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                              border: Border.all(
+                                                color: AppTheme.accent,
+                                                width: 1.5,
                                               ),
-                                            ],
+                                            ),
+                                            child: Text(
+                                              'Cost: $coinCost Coins',
+                                              style: const TextStyle(
+                                                color: AppTheme.textPrimary,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 11,
+                                              ),
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -582,24 +620,30 @@ class _PickupRequestsState extends State<_PickupRequests> {
                                   const SizedBox(height: 8),
                                   Text(
                                     req['description'],
-                                    style: TextStyle(color: Colors.grey[700]),
+                                    style: const TextStyle(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ],
                                 if (req['pickup_address'] != null) ...[
                                   const SizedBox(height: 4),
                                   Row(
                                     children: [
-                                      Icon(
+                                      const Icon(
                                         Icons.location_on,
                                         size: 14,
-                                        color: Colors.grey[500],
+                                        color: AppTheme.textMuted,
                                       ),
                                       const SizedBox(width: 4),
-                                      Text(
-                                        req['pickup_address'],
-                                        style: TextStyle(
-                                          color: Colors.grey[500],
-                                          fontSize: 12,
+                                      Flexible(
+                                        child: Text(
+                                          req['pickup_address'],
+                                          style: const TextStyle(
+                                            color: AppTheme.textMuted,
+                                            fontSize: 12,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                     ],
@@ -610,12 +654,8 @@ class _PickupRequestsState extends State<_PickupRequests> {
                                   width: double.infinity,
                                   child: ElevatedButton.icon(
                                     onPressed: () => _accept(req['id']),
-                                    icon: const Icon(Icons.check),
+                                    icon: const Icon(Icons.check, size: 18),
                                     label: const Text('Accept Pickup'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      foregroundColor: Colors.white,
-                                    ),
                                   ),
                                 ),
                               ],
@@ -631,20 +671,30 @@ class _PickupRequestsState extends State<_PickupRequests> {
     );
   }
 
+  Widget _scrapIcon() => Container(
+    width: 48,
+    height: 48,
+    decoration: BoxDecoration(
+      color: AppTheme.primary.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(
+        color: AppTheme.primary.withValues(alpha: 0.3),
+        width: 1.5,
+      ),
+    ),
+    child: const Icon(Icons.recycling, color: AppTheme.primary),
+  );
+
   Future<void> _accept(String requestId) async {
     try {
       await context.read<ScrapProvider>().acceptRequest(
         requestId,
         context.read<AuthProvider>().userId!,
       );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Pickup accepted!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Pickup accepted!')));
     } catch (e) {
       if (mounted) {
         final errMsg = e.toString().replaceAll('Exception: ', '');
@@ -654,7 +704,7 @@ class _PickupRequestsState extends State<_PickupRequests> {
             builder: (ctx) => AlertDialog(
               title: const Row(
                 children: [
-                  Icon(Icons.warning_amber, color: Colors.orange, size: 28),
+                  Icon(Icons.warning_amber, color: AppTheme.accent, size: 28),
                   SizedBox(width: 8),
                   Text('Insufficient Balance'),
                 ],
@@ -662,11 +712,11 @@ class _PickupRequestsState extends State<_PickupRequests> {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(errMsg, style: const TextStyle(fontSize: 14)),
+                  Text(errMsg, style: const TextStyle(fontSize: 13)),
                   const SizedBox(height: 12),
                   const Text(
-                    'Buy more Scrap Coins from your Wallet to accept this pickup.',
-                    style: TextStyle(color: Colors.grey, fontSize: 13),
+                    'Buy more Scrap Coins from your Wallet.',
+                    style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
                   ),
                 ],
               ),
@@ -685,10 +735,6 @@ class _PickupRequestsState extends State<_PickupRequests> {
                   },
                   icon: const Icon(Icons.account_balance_wallet, size: 18),
                   label: const Text('Buy Coins'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purple,
-                    foregroundColor: Colors.white,
-                  ),
                 ),
               ],
             ),
@@ -697,7 +743,7 @@ class _PickupRequestsState extends State<_PickupRequests> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error: $errMsg'),
-              backgroundColor: Colors.red,
+              backgroundColor: AppTheme.danger,
             ),
           );
         }
@@ -706,9 +752,9 @@ class _PickupRequestsState extends State<_PickupRequests> {
   }
 }
 
+// ─── INDUSTRY REQUIREMENTS ─────────────────────
 class _IndustryRequirements extends StatefulWidget {
   const _IndustryRequirements();
-
   @override
   State<_IndustryRequirements> createState() => _IndustryRequirementsState();
 }
@@ -740,9 +786,7 @@ class _IndustryRequirementsState extends State<_IndustryRequirements> {
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'industry_requirements',
-          callback: (payload) {
-            _loadData(); // Auto-refresh when any requirement changes
-          },
+          callback: (payload) => _loadData(),
         )
         .subscribe();
   }
@@ -753,13 +797,12 @@ class _IndustryRequirementsState extends State<_IndustryRequirements> {
     final inv = await context.read<ScrapProvider>().fetchDealerInventory(
       auth.userId!,
     );
-    if (mounted) {
+    if (mounted)
       setState(() {
         _requirements = reqs;
         _inventory = inv;
         _loading = false;
       });
-    }
   }
 
   @override
@@ -767,23 +810,26 @@ class _IndustryRequirementsState extends State<_IndustryRequirements> {
     return Scaffold(
       appBar: AppBar(title: const Text('Industry Requirements')),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: SpinKitFadingCube(color: AppTheme.primary, size: 36),
+            )
           : RefreshIndicator(
+              color: AppTheme.primary,
               onRefresh: _loadData,
               child: _requirements.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.factory,
-                            size: 64,
-                            color: Colors.grey[400],
+                            size: 56,
+                            color: AppTheme.borderLight,
                           ),
                           const SizedBox(height: 12),
-                          Text(
+                          const Text(
                             'No open requirements',
-                            style: TextStyle(color: Colors.grey[600]),
+                            style: TextStyle(color: AppTheme.textMuted),
                           ),
                         ],
                       ),
@@ -805,81 +851,131 @@ class _IndustryRequirementsState extends State<_IndustryRequirements> {
                         final progress = fulfilled / required;
                         final isClosed = remaining <= 0;
 
-                        return Card(
+                        return Container(
                           margin: const EdgeInsets.only(bottom: 12),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
+                          child: GlassCard(
+                            padding: const EdgeInsets.all(18),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
                                   children: [
-                                    const Icon(
-                                      Icons.factory,
-                                      color: Colors.blueGrey,
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blueGrey.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: Colors.blueGrey.withValues(
+                                            alpha: 0.3,
+                                          ),
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      child: const Icon(
+                                        Icons.factory,
+                                        color: Colors.blueGrey,
+                                        size: 20,
+                                      ),
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: 12),
                                     Expanded(
                                       child: Text(
                                         industry?['organization_name'] ??
                                             industry?['name'] ??
                                             'Industry',
                                         style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 15,
+                                          color: AppTheme.textPrimary,
                                         ),
                                       ),
                                     ),
-                                    Chip(
-                                      label: Text(
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 3,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            (isClosed
+                                                    ? AppTheme.success
+                                                    : AppTheme.primary)
+                                                .withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(
+                                          color: isClosed
+                                              ? AppTheme.success
+                                              : AppTheme.primary,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      child: Text(
                                         isClosed
                                             ? 'FULFILLED'
                                             : req['status']
                                                   .toString()
                                                   .toUpperCase(),
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 10,
-                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                          color: isClosed
+                                              ? AppTheme.success
+                                              : AppTheme.primary,
                                         ),
                                       ),
-                                      backgroundColor: isClosed
-                                          ? Colors.blue
-                                          : req['status'] == 'open'
-                                          ? Colors.green
-                                          : Colors.orange,
-                                      padding: EdgeInsets.zero,
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 12),
                                 Text(
                                   'Need: ${req['scrap_type'].toString().toUpperCase()} — ${remaining.toStringAsFixed(1)}kg remaining',
-                                  style: const TextStyle(fontSize: 14),
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: AppTheme.textSecondary,
+                                  ),
                                 ),
-                                const SizedBox(height: 8),
-                                LinearProgressIndicator(
-                                  value: progress.clamp(0.0, 1.0),
-                                  backgroundColor: Colors.grey[200],
-                                  color: isClosed ? Colors.blue : Colors.green,
-                                  minHeight: 8,
+                                const SizedBox(height: 10),
+                                ClipRRect(
                                   borderRadius: BorderRadius.circular(4),
+                                  child: LinearProgressIndicator(
+                                    value: progress.clamp(0.0, 1.0),
+                                    backgroundColor: AppTheme.surfaceLight,
+                                    color: isClosed
+                                        ? AppTheme.success
+                                        : AppTheme.primary,
+                                    minHeight: 8,
+                                  ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${fulfilled.toStringAsFixed(1)} / ${required.toStringAsFixed(1)} kg fulfilled',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[600],
+                                  '${fulfilled.toStringAsFixed(1)} / ${required.toStringAsFixed(1)} kg',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppTheme.textMuted,
                                   ),
                                 ),
                                 if (req['price_per_kg'] != null) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '💰 ${req['price_per_kg']} coins/kg',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.green,
-                                    ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.monetization_on,
+                                        color: AppTheme.accent,
+                                        size: 14,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${req['price_per_kg']} coins/kg',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: AppTheme.textPrimary,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                                 const SizedBox(height: 12),
@@ -893,17 +989,20 @@ class _IndustryRequirementsState extends State<_IndustryRequirements> {
                                       isClosed
                                           ? Icons.check_circle
                                           : Icons.send,
+                                      size: 18,
                                     ),
                                     label: Text(
                                       isClosed
                                           ? 'Fully Supplied'
                                           : 'Supply Scrap',
                                     ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: isClosed
-                                          ? Colors.grey
-                                          : Colors.blueGrey,
-                                    ),
+                                    style: isClosed
+                                        ? ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                AppTheme.surfaceLight,
+                                            foregroundColor: AppTheme.textMuted,
+                                          )
+                                        : null,
                                   ),
                                 ),
                               ],
@@ -936,6 +1035,7 @@ class _IndustryRequirementsState extends State<_IndustryRequirements> {
           children: [
             Text(
               'Your $scrapType inventory: ${availableKg.toStringAsFixed(1)}kg',
+              style: const TextStyle(color: AppTheme.textSecondary),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -967,23 +1067,18 @@ class _IndustryRequirementsState extends State<_IndustryRequirements> {
                   quantityKg: qty,
                 );
                 _loadData();
-                if (mounted) {
+                if (mounted)
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Fulfillment submitted!'),
-                      backgroundColor: Colors.green,
-                    ),
+                    const SnackBar(content: Text('Fulfillment submitted!')),
                   );
-                }
               } catch (e) {
-                if (mounted) {
+                if (mounted)
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Error: $e'),
-                      backgroundColor: Colors.red,
+                      backgroundColor: AppTheme.danger,
                     ),
                   );
-                }
               }
             },
             child: const Text('Submit'),

@@ -3,6 +3,11 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/glass_card.dart';
+import '../../widgets/shimmer_loading.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/scrap_provider.dart';
 import '../../providers/product_provider.dart';
@@ -12,7 +17,6 @@ import '../user/wallet_screen.dart';
 
 class ArtistDashboard extends StatefulWidget {
   const ArtistDashboard({super.key});
-
   @override
   State<ArtistDashboard> createState() => _ArtistDashboardState();
 }
@@ -28,42 +32,46 @@ class _ArtistDashboardState extends State<ArtistDashboard> {
       const _MyProducts(),
       const MarketplaceScreen(),
     ];
-
     return Scaffold(
       body: pages[_currentIndex],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (i) => setState(() => _currentIndex = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.recycling_outlined),
-            selectedIcon: Icon(Icons.recycling),
-            label: 'Pickups',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.palette_outlined),
-            selectedIcon: Icon(Icons.palette),
-            label: 'Products',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.shopping_bag_outlined),
-            selectedIcon: Icon(Icons.shopping_bag),
-            label: 'Shop',
-          ),
-        ],
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: AppTheme.border, width: 2)),
+        ),
+        child: NavigationBar(
+          selectedIndex: _currentIndex,
+          onDestinationSelected: (i) => setState(() => _currentIndex = i),
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard),
+              label: 'Home',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.local_shipping_outlined),
+              selectedIcon: Icon(Icons.local_shipping),
+              label: 'Pickups',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.palette_outlined),
+              selectedIcon: Icon(Icons.palette),
+              label: 'Products',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.shopping_bag_outlined),
+              selectedIcon: Icon(Icons.shopping_bag),
+              label: 'Shop',
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
+// ─── ARTIST HOME ───────────────────────────────
 class _ArtistHome extends StatefulWidget {
   const _ArtistHome();
-
   @override
   State<_ArtistHome> createState() => _ArtistHomeState();
 }
@@ -95,26 +103,24 @@ class _ArtistHomeState extends State<_ArtistHome> {
           .select('*, user:profiles!artist_contracts_user_id_fkey(name)')
           .eq('artist_id', auth.userId!)
           .order('created_at', ascending: false);
-
-      if (mounted) {
+      if (mounted)
         setState(() {
           _myProducts = prods;
           _acceptedRequests = accepted;
           _contracts = List<Map<String, dynamic>>.from(contracts);
           _loading = false;
         });
-      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final pad = AppTheme.responsivePadding(context);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Artist Studio'),
-        backgroundColor: const Color(0xFF6A1B9A),
         actions: [
           IconButton(
             icon: const Icon(Icons.account_balance_wallet),
@@ -138,105 +144,107 @@ class _ArtistHomeState extends State<_ArtistHome> {
         ],
       ),
       body: RefreshIndicator(
+        color: AppTheme.secondary,
         onRefresh: _loadData,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(pad),
           children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF6A1B9A), Color(0xFFAB47BC)],
-                ),
-                borderRadius: BorderRadius.circular(20),
-              ),
+            GlassCard(
+              padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Welcome, ${auth.profile?['name'] ?? 'Artist'}! 🎨',
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: AppTheme.textPrimary,
                       fontSize: 22,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 4),
                   const Text(
                     'Create beauty from scrap',
-                    style: TextStyle(color: Colors.white70),
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 14,
+                    ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   Row(
                     children: [
-                      _Stat(label: 'Products', value: '${_myProducts.length}'),
-                      const SizedBox(width: 12),
-                      _Stat(
-                        label: 'Active Pickups',
-                        value: '${_acceptedRequests.length}',
+                      Expanded(
+                        child: GlassStatCard(
+                          icon: Icons.palette,
+                          value: '${_myProducts.length}',
+                          label: 'Products',
+                          iconColor: AppTheme.secondary,
+                        ),
                       ),
-                      const SizedBox(width: 12),
-                      _Stat(label: 'Contracts', value: '${_contracts.length}'),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: GlassStatCard(
+                          icon: Icons.local_shipping,
+                          value: '${_acceptedRequests.length}',
+                          label: 'Pickups',
+                          iconColor: AppTheme.accent,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: GlassStatCard(
+                          icon: Icons.description,
+                          value: '${_contracts.length}',
+                          label: 'Contracts',
+                          iconColor: AppTheme.primary,
+                        ),
+                      ),
                     ],
                   ),
                 ],
               ),
-            ),
+            ).animate().fadeIn(duration: 400.ms),
             const SizedBox(height: 20),
 
-            // Active Pickups section
-            Text(
+            // Active Pickups
+            const Text(
               'Active Pickups',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
             ),
             const SizedBox(height: 12),
-
             if (_loading)
-              const Center(child: CircularProgressIndicator())
+              const ShimmerList(itemCount: 2, itemHeight: 60)
             else if (_acceptedRequests.isEmpty)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    'No active pickups. Accept requests from the Pickups tab!',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
+              GlassCard(
+                padding: const EdgeInsets.all(20),
+                child: const Text(
+                  'No active pickups. Accept from Pickups tab!',
+                  style: TextStyle(color: AppTheme.textMuted),
                 ),
               )
             else
               ..._acceptedRequests.map(
-                (req) => Card(
+                (req) => Container(
                   margin: const EdgeInsets.only(bottom: 8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
+                  child: GlassCard(
+                    padding: const EdgeInsets.all(14),
                     child: Row(
                       children: [
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(6),
                           child: req['image_url'] != null
                               ? Image.network(
                                   req['image_url'],
-                                  width: 56,
-                                  height: 56,
+                                  width: 50,
+                                  height: 50,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) =>
-                                      const CircleAvatar(
-                                        backgroundColor: Color(0xFFE1BEE7),
-                                        child: Icon(
-                                          Icons.recycling,
-                                          color: Color(0xFF6A1B9A),
-                                        ),
-                                      ),
+                                  errorBuilder: (_, __, ___) => _avatar(),
                                 )
-                              : const CircleAvatar(
-                                  backgroundColor: Color(0xFFE1BEE7),
-                                  child: Icon(
-                                    Icons.recycling,
-                                    color: Color(0xFF6A1B9A),
-                                  ),
-                                ),
+                              : _avatar(),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -244,16 +252,18 @@ class _ArtistHomeState extends State<_ArtistHome> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '${req['scrap_type'].toString().toUpperCase()} - ${req['weight_kg']}kg',
+                                '${req['scrap_type'].toString().toUpperCase()} — ${req['weight_kg']}kg',
                                 style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.textPrimary,
+                                  fontSize: 14,
                                 ),
                               ),
                               Text(
                                 req['profiles']?['name'] ?? 'User',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 13,
+                                style: const TextStyle(
+                                  color: AppTheme.textMuted,
+                                  fontSize: 12,
                                 ),
                               ),
                             ],
@@ -262,9 +272,7 @@ class _ArtistHomeState extends State<_ArtistHome> {
                         ElevatedButton(
                           onPressed: () => _completePickup(req),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
                           ),
                           child: const Text(
                             'Complete',
@@ -278,56 +286,85 @@ class _ArtistHomeState extends State<_ArtistHome> {
               ),
             const SizedBox(height: 20),
 
-            Text(
+            // Contracts
+            const Text(
               'My Contracts',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
             ),
             const SizedBox(height: 12),
-
             if (_loading)
-              const Center(child: CircularProgressIndicator())
+              const ShimmerList(itemCount: 2, itemHeight: 60)
             else if (_contracts.isEmpty)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    'No contracts yet',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
+              GlassCard(
+                padding: const EdgeInsets.all(20),
+                child: const Text(
+                  'No contracts yet',
+                  style: TextStyle(color: AppTheme.textMuted),
                 ),
               )
             else
-              ..._contracts.map(
-                (c) => Card(
+              ..._contracts.map((c) {
+                final statusColor = _getStatusColor(c['status']);
+                return Container(
                   margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: _getStatusColor(
-                        c['status'],
-                      ).withOpacity(0.1),
-                      child: Icon(
-                        Icons.description,
-                        color: _getStatusColor(c['status']),
-                      ),
+                  child: GlassCard(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
                     ),
-                    title: Text(
-                      c['description'],
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(
-                      'From: ${c['user']?['name'] ?? 'User'} • ${c['status']}',
-                    ),
-                    trailing: c['status'] == 'pending'
-                        ? Row(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: statusColor, width: 1.5),
+                          ),
+                          child: Icon(
+                            Icons.description,
+                            color: statusColor,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                c['description'] ?? '',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.textPrimary,
+                                  fontSize: 13,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                'From: ${c['user']?['name'] ?? 'User'} • ${c['status']}',
+                                style: const TextStyle(
+                                  color: AppTheme.textMuted,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (c['status'] == 'pending')
+                          Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
                                 icon: const Icon(
                                   Icons.check,
-                                  color: Colors.green,
+                                  color: AppTheme.success,
+                                  size: 20,
                                 ),
                                 onPressed: () =>
                                     _updateContract(c['id'], 'accepted'),
@@ -335,37 +372,54 @@ class _ArtistHomeState extends State<_ArtistHome> {
                               IconButton(
                                 icon: const Icon(
                                   Icons.close,
-                                  color: Colors.red,
+                                  color: AppTheme.danger,
+                                  size: 20,
                                 ),
                                 onPressed: () =>
                                     _updateContract(c['id'], 'rejected'),
                               ),
                             ],
-                          )
-                        : null,
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-              ),
+                );
+              }),
+            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
+  Widget _avatar() => Container(
+    width: 50,
+    height: 50,
+    decoration: BoxDecoration(
+      color: AppTheme.secondary.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(
+        color: AppTheme.secondary.withValues(alpha: 0.3),
+        width: 1.5,
+      ),
+    ),
+    child: const Icon(Icons.recycling, color: AppTheme.secondary, size: 24),
+  );
+
   Color _getStatusColor(String status) {
     switch (status) {
       case 'pending':
-        return Colors.orange;
+        return AppTheme.accent;
       case 'accepted':
-        return Colors.blue;
+        return AppTheme.success;
       case 'in_progress':
-        return Colors.purple;
+        return AppTheme.secondary;
       case 'completed':
-        return Colors.green;
+        return AppTheme.primary;
       case 'rejected':
-        return Colors.red;
+        return AppTheme.danger;
       default:
-        return Colors.grey;
+        return AppTheme.textMuted;
     }
   }
 
@@ -377,11 +431,13 @@ class _ArtistHomeState extends State<_ArtistHome> {
           .eq('id', contractId);
       _loadData();
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppTheme.danger,
+          ),
         );
-      }
     }
   }
 
@@ -397,56 +453,23 @@ class _ArtistHomeState extends State<_ArtistHome> {
             content: Text(
               'Pickup completed! User earned ${result['coins_earned']} coins',
             ),
-            backgroundColor: Colors.green,
           ),
         );
         _loadData();
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppTheme.danger,
+          ),
         );
-      }
     }
   }
 }
 
-class _Stat extends StatelessWidget {
-  final String label;
-  final String value;
-  const _Stat({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-            Text(
-              label,
-              style: const TextStyle(color: Colors.white60, fontSize: 11),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
+// ─── PICKUP REQUESTS (ARTIST) ──────────────────
 class _PickupRequests extends StatefulWidget {
   const _PickupRequests();
   @override
@@ -459,20 +482,17 @@ class _PickupRequestsState extends State<_PickupRequests> {
   @override
   void initState() {
     super.initState();
-    // Fetch requests passing the current user (partner) ID
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
+      if (mounted)
         context.read<ScrapProvider>().fetchAvailableRequests(
           context.read<AuthProvider>().userId!,
         );
-      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final scrap = context.watch<ScrapProvider>();
-
     final filteredRequests = _selectedFilter == 'all'
         ? scrap.availableRequests
         : scrap.availableRequests
@@ -480,10 +500,7 @@ class _PickupRequestsState extends State<_PickupRequests> {
               .toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Scrap Pickups'),
-        backgroundColor: const Color(0xFF6A1B9A),
-      ),
+      appBar: AppBar(title: const Text('Scrap Pickups')),
       body: Column(
         children: [
           SingleChildScrollView(
@@ -500,57 +517,108 @@ class _PickupRequestsState extends State<_PickupRequests> {
                     'ewaste',
                     'other',
                   ].map((type) {
+                    final selected = _selectedFilter == type;
                     return Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: ChoiceChip(
-                        label: Text(type.toUpperCase()),
-                        selected: _selectedFilter == type,
-                        onSelected: (selected) {
-                          if (selected) setState(() => _selectedFilter = type);
-                        },
-                        selectedColor: const Color(0xFF6A1B9A).withOpacity(0.2),
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        onTap: () => setState(() => _selectedFilter = type),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? AppTheme.secondary.withValues(alpha: 0.1)
+                                : AppTheme.surface,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: selected
+                                  ? AppTheme.secondary
+                                  : AppTheme.borderLight,
+                              width: 2,
+                            ),
+                            boxShadow: selected
+                                ? [
+                                    const BoxShadow(
+                                      color: AppTheme.shadow,
+                                      offset: Offset(2, 2),
+                                      blurRadius: 0,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Text(
+                            type.toUpperCase(),
+                            style: TextStyle(
+                              color: selected
+                                  ? AppTheme.secondary
+                                  : AppTheme.textMuted,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
                       ),
                     );
                   }).toList(),
             ),
           ),
           Expanded(
-            child: scrap.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : filteredRequests.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.inbox, size: 64, color: Colors.grey[400]),
-                        const SizedBox(height: 12),
-                        Text(
-                          'No pending requests for this filter',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: () => scrap.fetchAvailableRequests(
-                      context.read<AuthProvider>().userId!,
-                    ),
-                    child: ListView.builder(
+            child: RefreshIndicator(
+              color: AppTheme.secondary,
+              onRefresh: () => scrap.fetchAvailableRequests(
+                context.read<AuthProvider>().userId!,
+              ),
+              child: scrap.isLoading
+                  ? const Center(
+                      child: SpinKitFadingCube(
+                        color: AppTheme.secondary,
+                        size: 36,
+                      ),
+                    )
+                  : filteredRequests.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.inbox,
+                            size: 56,
+                            color: AppTheme.borderLight,
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'No pending requests',
+                            style: TextStyle(color: AppTheme.textMuted),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: filteredRequests.length,
                       itemBuilder: (context, i) {
                         final req = filteredRequests[i];
-                        return Card(
+                        final user = req['profiles'] as Map<String, dynamic>?;
+                        final coinCost =
+                            ((req['weight_kg'] as num) *
+                                    (ScrapProvider
+                                            .coinMultipliers[req['scrap_type']] ??
+                                        10))
+                                .floor();
+                        return Container(
                           margin: const EdgeInsets.only(bottom: 12),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
+                          child: GlassCard(
+                            padding: const EdgeInsets.all(16),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
                                   children: [
                                     ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
+                                      borderRadius: BorderRadius.circular(6),
                                       child: req['image_url'] != null
                                           ? Image.network(
                                               req['image_url'],
@@ -558,15 +626,9 @@ class _PickupRequestsState extends State<_PickupRequests> {
                                               height: 48,
                                               fit: BoxFit.cover,
                                               errorBuilder: (_, __, ___) =>
-                                                  const CircleAvatar(
-                                                    child: Icon(
-                                                      Icons.recycling,
-                                                    ),
-                                                  ),
+                                                  _icon(),
                                             )
-                                          : const CircleAvatar(
-                                              child: Icon(Icons.recycling),
-                                            ),
+                                          : _icon(),
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
@@ -575,37 +637,45 @@ class _PickupRequestsState extends State<_PickupRequests> {
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            '${req['scrap_type'].toString().toUpperCase()} - ${req['weight_kg']}kg',
+                                            '${req['scrap_type'].toString().toUpperCase()} — ${req['weight_kg']}kg',
                                             style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 15,
+                                              color: AppTheme.textPrimary,
                                             ),
                                           ),
                                           Text(
-                                            req['profiles']?['name'] ?? 'User',
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                              fontSize: 13,
+                                            'From: ${user?['name'] ?? 'Unknown'}',
+                                            style: const TextStyle(
+                                              color: AppTheme.textMuted,
+                                              fontSize: 12,
                                             ),
                                           ),
                                           const SizedBox(height: 4),
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.monetization_on,
-                                                color: Colors.amber,
-                                                size: 14,
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: AppTheme.accent.withValues(
+                                                alpha: 0.1,
                                               ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                'Cost: ${((req['weight_kg'] as num) * (ScrapProvider.coinMultipliers[req['scrap_type']] ?? 10)).floor()} Coins',
-                                                style: const TextStyle(
-                                                  color: Colors.amber,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 12,
-                                                ),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                              border: Border.all(
+                                                color: AppTheme.accent,
+                                                width: 1.5,
                                               ),
-                                            ],
+                                            ),
+                                            child: Text(
+                                              'Cost: $coinCost Coins',
+                                              style: const TextStyle(
+                                                color: AppTheme.textPrimary,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 11,
+                                              ),
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -616,26 +686,30 @@ class _PickupRequestsState extends State<_PickupRequests> {
                                   const SizedBox(height: 8),
                                   Text(
                                     req['description'],
-                                    style: TextStyle(color: Colors.grey[700]),
+                                    style: const TextStyle(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ],
                                 if (req['pickup_address'] != null) ...[
                                   const SizedBox(height: 4),
                                   Row(
                                     children: [
-                                      Icon(
+                                      const Icon(
                                         Icons.location_on,
                                         size: 14,
-                                        color: Colors.grey[500],
+                                        color: AppTheme.textMuted,
                                       ),
                                       const SizedBox(width: 4),
-                                      Expanded(
+                                      Flexible(
                                         child: Text(
                                           req['pickup_address'],
-                                          style: TextStyle(
-                                            color: Colors.grey[500],
+                                          style: const TextStyle(
+                                            color: AppTheme.textMuted,
                                             fontSize: 12,
                                           ),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                     ],
@@ -645,123 +719,9 @@ class _PickupRequestsState extends State<_PickupRequests> {
                                 SizedBox(
                                   width: double.infinity,
                                   child: ElevatedButton.icon(
-                                    onPressed: () async {
-                                      try {
-                                        await scrap.acceptRequest(
-                                          req['id'],
-                                          context.read<AuthProvider>().userId!,
-                                        );
-                                        if (mounted) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                'Request accepted!',
-                                              ),
-                                              backgroundColor: Colors.green,
-                                            ),
-                                          );
-                                        }
-                                      } catch (e) {
-                                        if (mounted) {
-                                          final errMsg = e
-                                              .toString()
-                                              .replaceAll('Exception: ', '');
-                                          if (errMsg.toLowerCase().contains(
-                                            'insufficient',
-                                          )) {
-                                            showDialog(
-                                              context: context,
-                                              builder: (ctx) => AlertDialog(
-                                                title: const Row(
-                                                  children: [
-                                                    Icon(
-                                                      Icons.warning_amber,
-                                                      color: Colors.orange,
-                                                      size: 28,
-                                                    ),
-                                                    SizedBox(width: 8),
-                                                    Text(
-                                                      'Insufficient Balance',
-                                                    ),
-                                                  ],
-                                                ),
-                                                content: Column(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    Text(
-                                                      errMsg,
-                                                      style: const TextStyle(
-                                                        fontSize: 14,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 12),
-                                                    const Text(
-                                                      'Buy more Scrap Coins from your Wallet to accept this pickup.',
-                                                      style: TextStyle(
-                                                        color: Colors.grey,
-                                                        fontSize: 13,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(ctx),
-                                                    child: const Text('Cancel'),
-                                                  ),
-                                                  ElevatedButton.icon(
-                                                    onPressed: () {
-                                                      Navigator.pop(ctx);
-                                                      Navigator.push(
-                                                        context,
-                                                        MaterialPageRoute(
-                                                          builder: (_) =>
-                                                              const WalletScreen(),
-                                                        ),
-                                                      );
-                                                    },
-                                                    icon: const Icon(
-                                                      Icons
-                                                          .account_balance_wallet,
-                                                      size: 18,
-                                                    ),
-                                                    label: const Text(
-                                                      'Buy Coins',
-                                                    ),
-                                                    style:
-                                                        ElevatedButton.styleFrom(
-                                                          backgroundColor:
-                                                              Colors.purple,
-                                                          foregroundColor:
-                                                              Colors.white,
-                                                        ),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-                                          } else {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              SnackBar(
-                                                content: Text('Error: $errMsg'),
-                                                backgroundColor: Colors.red,
-                                              ),
-                                            );
-                                          }
-                                        }
-                                      }
-                                    },
-                                    icon: const Icon(Icons.check),
+                                    onPressed: () => _accept(req['id']),
+                                    icon: const Icon(Icons.check, size: 18),
                                     label: const Text('Accept Pickup'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF6A1B9A),
-                                      foregroundColor: Colors.white,
-                                    ),
                                   ),
                                 ),
                               ],
@@ -770,14 +730,95 @@ class _PickupRequestsState extends State<_PickupRequests> {
                         );
                       },
                     ),
-                  ),
+            ),
           ),
         ],
       ),
     );
   }
+
+  Widget _icon() => Container(
+    width: 48,
+    height: 48,
+    decoration: BoxDecoration(
+      color: AppTheme.secondary.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(
+        color: AppTheme.secondary.withValues(alpha: 0.3),
+        width: 1.5,
+      ),
+    ),
+    child: const Icon(Icons.recycling, color: AppTheme.secondary),
+  );
+
+  Future<void> _accept(String requestId) async {
+    try {
+      await context.read<ScrapProvider>().acceptRequest(
+        requestId,
+        context.read<AuthProvider>().userId!,
+      );
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Request accepted!')));
+    } catch (e) {
+      if (mounted) {
+        final errMsg = e.toString().replaceAll('Exception: ', '');
+        if (errMsg.toLowerCase().contains('insufficient')) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.warning_amber, color: AppTheme.accent, size: 28),
+                  SizedBox(width: 8),
+                  Text('Insufficient Balance'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(errMsg, style: const TextStyle(fontSize: 13)),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Buy more Scrap Coins from your Wallet.',
+                    style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const WalletScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.account_balance_wallet, size: 18),
+                  label: const Text('Buy Coins'),
+                ),
+              ],
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: $errMsg'),
+              backgroundColor: AppTheme.danger,
+            ),
+          );
+        }
+      }
+    }
+  }
 }
 
+// ─── MY PRODUCTS ──────────────────────────────
 class _MyProducts extends StatefulWidget {
   const _MyProducts();
   @override
@@ -811,85 +852,134 @@ class _MyProductsState extends State<_MyProducts> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Products'),
-        backgroundColor: const Color(0xFF6A1B9A),
-      ),
+      appBar: AppBar(title: const Text('My Products')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showCreateDialog,
         icon: const Icon(Icons.add),
         label: const Text('Add Product'),
-        backgroundColor: const Color(0xFF6A1B9A),
-        foregroundColor: Colors.white,
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: SpinKitFadingCube(color: AppTheme.secondary, size: 36),
+            )
           : _products.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.palette, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 12),
-                  Text(
-                    'No products yet',
-                    style: TextStyle(color: Colors.grey[600]),
+                  const Icon(
+                    Icons.palette,
+                    size: 56,
+                    color: AppTheme.borderLight,
                   ),
-                  const Text('Create your first upcycled product!'),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'No products yet',
+                    style: TextStyle(color: AppTheme.textMuted),
+                  ),
+                  const Text(
+                    'Create your first upcycled product!',
+                    style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                  ),
                 ],
               ),
             )
           : RefreshIndicator(
+              color: AppTheme.secondary,
               onRefresh: _loadProducts,
               child: ListView.builder(
                 padding: const EdgeInsets.all(16),
                 itemCount: _products.length,
                 itemBuilder: (context, i) {
                   final p = _products[i];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: ListTile(
-                      leading: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: p['image_url'] != null
-                            ? Image.network(
-                                p['image_url'],
-                                width: 48,
-                                height: 48,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => CircleAvatar(
-                                  backgroundColor: Colors.purple.shade50,
-                                  child: const Icon(
-                                    Icons.shopping_bag,
-                                    color: Colors.purple,
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    child: GlassCard(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      child: Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: p['image_url'] != null
+                                ? Image.network(
+                                    p['image_url'],
+                                    width: 48,
+                                    height: 48,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => _prodIcon(),
+                                  )
+                                : _prodIcon(),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  p['name'],
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.textPrimary,
+                                    fontSize: 14,
                                   ),
                                 ),
-                              )
-                            : CircleAvatar(
-                                backgroundColor: Colors.purple.shade50,
-                                child: const Icon(
-                                  Icons.shopping_bag,
-                                  color: Colors.purple,
+                                if (p['description'] != null)
+                                  Text(
+                                    p['description'],
+                                    style: const TextStyle(
+                                      color: AppTheme.textMuted,
+                                      fontSize: 11,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                '${p['price_coins']} 🪙',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.textPrimary,
                                 ),
                               ),
-                      ),
-                      title: Text(p['name']),
-                      subtitle: Text(p['description'] ?? ''),
-                      trailing: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '${p['price_coins']} 🪙',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            p['is_available'] ? 'Available' : 'Sold',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: p['is_available']
-                                  ? Colors.green
-                                  : Colors.red,
-                            ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      (p['is_available']
+                                              ? AppTheme.success
+                                              : AppTheme.danger)
+                                          .withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: p['is_available']
+                                        ? AppTheme.success
+                                        : AppTheme.danger,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Text(
+                                  p['is_available'] ? 'Available' : 'Sold',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: p['is_available']
+                                        ? AppTheme.success
+                                        : AppTheme.danger,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -900,6 +990,20 @@ class _MyProductsState extends State<_MyProducts> {
             ),
     );
   }
+
+  Widget _prodIcon() => Container(
+    width: 48,
+    height: 48,
+    decoration: BoxDecoration(
+      color: AppTheme.secondary.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(
+        color: AppTheme.secondary.withValues(alpha: 0.3),
+        width: 1.5,
+      ),
+    ),
+    child: const Icon(Icons.shopping_bag, color: AppTheme.secondary),
+  );
 
   void _showCreateDialog() {
     final nameCtrl = TextEditingController();
@@ -919,7 +1023,6 @@ class _MyProductsState extends State<_MyProducts> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Image picker
                 GestureDetector(
                   onTap: () async {
                     final picker = ImagePicker();
@@ -941,32 +1044,33 @@ class _MyProductsState extends State<_MyProducts> {
                   child: Container(
                     height: 120,
                     decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[300]!),
+                      color: AppTheme.surfaceLight,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppTheme.borderLight, width: 2),
                     ),
                     child: selectedImageBytes != null
                         ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(6),
                             child: Image.memory(
                               selectedImageBytes!,
                               fit: BoxFit.cover,
+                              width: double.infinity,
                             ),
                           )
-                        : Column(
+                        : const Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
                                 Icons.add_photo_alternate,
-                                size: 40,
-                                color: Colors.grey[400],
+                                size: 36,
+                                color: AppTheme.textMuted,
                               ),
-                              const SizedBox(height: 4),
+                              SizedBox(height: 4),
                               Text(
-                                'Tap to add product image',
+                                'Tap to add image',
                                 style: TextStyle(
-                                  color: Colors.grey[500],
-                                  fontSize: 13,
+                                  color: AppTheme.textMuted,
+                                  fontSize: 12,
                                 ),
                               ),
                             ],
@@ -988,17 +1092,14 @@ class _MyProductsState extends State<_MyProducts> {
                 TextField(
                   controller: priceCtrl,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Price (Scrap Coins per unit)',
-                  ),
+                  decoration: const InputDecoration(labelText: 'Price (Coins)'),
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: stockCtrl,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
-                    labelText: 'Stock Quantity (units available)',
-                    hintText: 'e.g. 10',
+                    labelText: 'Stock Qty',
                     suffixText: 'units',
                   ),
                 ),
@@ -1044,19 +1145,15 @@ class _MyProductsState extends State<_MyProducts> {
                   );
                   _loadProducts();
                 } catch (e) {
-                  if (mounted) {
+                  if (mounted)
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Error: $e'),
-                        backgroundColor: Colors.red,
+                        backgroundColor: AppTheme.danger,
                       ),
                     );
-                  }
                 }
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6A1B9A),
-              ),
               child: const Text('Create'),
             ),
           ],

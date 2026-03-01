@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/glass_card.dart';
+import '../../widgets/shimmer_loading.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/industry_provider.dart';
 import '../../providers/coin_provider.dart';
@@ -8,7 +13,6 @@ import '../user/wallet_screen.dart';
 
 class IndustryDashboard extends StatefulWidget {
   const IndustryDashboard({super.key});
-
   @override
   State<IndustryDashboard> createState() => _IndustryDashboardState();
 }
@@ -36,11 +40,11 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
     final industry = context.watch<IndustryProvider>();
     final coins = context.watch<CoinProvider>();
     final profile = auth.profile;
+    final pad = AppTheme.responsivePadding(context);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Industry Dashboard'),
-        backgroundColor: const Color(0xFF0D47A1),
         actions: [
           IconButton(
             icon: const Icon(Icons.account_balance_wallet),
@@ -67,106 +71,109 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
         onPressed: _showAddRequirement,
         icon: const Icon(Icons.add),
         label: const Text('Add Requirement'),
-        backgroundColor: const Color(0xFF0D47A1),
-        foregroundColor: Colors.white,
       ),
       body: RefreshIndicator(
+        color: AppTheme.primary,
         onRefresh: () async => _loadData(),
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(pad),
           children: [
-            // Welcome + Coins card
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0D47A1), Color(0xFF1976D2)],
-                ),
-                borderRadius: BorderRadius.circular(20),
-              ),
+            // Welcome
+            GlassCard(
+              padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     '${profile?['organization_name'] ?? profile?['name'] ?? 'Industry'} 🏭',
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: AppTheme.textPrimary,
                       fontSize: 22,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 4),
                   const Text(
                     'Manage your scrap requirements',
-                    style: TextStyle(color: Colors.white70),
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 14,
+                    ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   Row(
                     children: [
-                      _StatChip(
-                        label: 'Total',
-                        value: '${industry.requirements.length}',
-                        color: Colors.white24,
+                      Expanded(
+                        child: GlassStatCard(
+                          icon: Icons.list_alt,
+                          value: '${industry.requirements.length}',
+                          label: 'Total',
+                          iconColor: AppTheme.textSecondary,
+                        ),
                       ),
                       const SizedBox(width: 8),
-                      _StatChip(
-                        label: 'Open',
-                        value:
-                            '${industry.requirements.where((r) => r['status'] != 'closed').length}',
-                        color: Colors.greenAccent.withOpacity(0.3),
+                      Expanded(
+                        child: GlassStatCard(
+                          icon: Icons.pending,
+                          value:
+                              '${industry.requirements.where((r) => r['status'] != 'closed').length}',
+                          label: 'Open',
+                          iconColor: AppTheme.primary,
+                        ),
                       ),
                       const SizedBox(width: 8),
-                      _StatChip(
-                        label: 'Closed',
-                        value:
-                            '${industry.requirements.where((r) => r['status'] == 'closed').length}',
-                        color: Colors.redAccent.withOpacity(0.3),
+                      Expanded(
+                        child: GlassStatCard(
+                          icon: Icons.check_circle,
+                          value:
+                              '${industry.requirements.where((r) => r['status'] == 'closed').length}',
+                          label: 'Closed',
+                          iconColor: AppTheme.success,
+                        ),
                       ),
                     ],
                   ),
                 ],
               ),
-            ),
+            ).animate().fadeIn(duration: 400.ms),
             const SizedBox(height: 16),
 
-            // Coin Balance Card with Buy button
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFF8F00), Color(0xFFFFC107)],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.amber.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
+            // Coin Balance
+            GlassCard(
+              padding: const EdgeInsets.all(18),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.monetization_on,
-                    color: Colors.white,
-                    size: 40,
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accent,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppTheme.border, width: 2),
+                    ),
+                    child: const Icon(
+                      Icons.monetization_on,
+                      color: AppTheme.textPrimary,
+                      size: 24,
+                    ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
                           'Scrap Coins Balance',
-                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                          style: TextStyle(
+                            color: AppTheme.textMuted,
+                            fontSize: 12,
+                          ),
                         ),
                         Text(
                           '${coins.balance}',
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: AppTheme.textPrimary,
                             fontSize: 28,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
                       ],
@@ -174,48 +181,49 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
                   ),
                   ElevatedButton.icon(
                     onPressed: () => _showBuyCoinsDialog(context),
-                    icon: const Icon(Icons.add_shopping_cart, size: 18),
-                    label: const Text('Buy Coins'),
+                    icon: const Icon(Icons.add_shopping_cart, size: 16),
+                    label: const Text('Buy'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.orange.shade800,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
+                        horizontal: 14,
                         vertical: 8,
                       ),
                     ),
                   ),
                 ],
               ),
-            ),
+            ).animate().fadeIn(delay: 200.ms),
             const SizedBox(height: 24),
 
-            Text(
+            // Requirements
+            const Text(
               'My Requirements',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
             ),
             const SizedBox(height: 12),
 
             if (industry.isLoading)
-              const Center(child: CircularProgressIndicator())
+              const ShimmerList(itemCount: 3, itemHeight: 120)
             else if (industry.requirements.isEmpty)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    children: [
-                      Icon(Icons.factory, size: 48, color: Colors.grey[400]),
-                      const SizedBox(height: 12),
-                      Text(
-                        'No requirements posted',
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text('Tap + to post your first scrap requirement'),
-                    ],
-                  ),
+              GlassCard(
+                padding: const EdgeInsets.all(32),
+                child: const Column(
+                  children: [
+                    Icon(Icons.factory, size: 48, color: AppTheme.borderLight),
+                    SizedBox(height: 12),
+                    Text(
+                      'No requirements posted',
+                      style: TextStyle(color: AppTheme.textMuted),
+                    ),
+                    Text(
+                      'Tap + to post your first requirement',
+                      style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                    ),
+                  ],
                 ),
               )
             else
@@ -224,43 +232,60 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
                 final fulfilled = double.parse(req['fulfilled_kg'].toString());
                 final progress = required > 0 ? fulfilled / required : 0.0;
                 final isClosed = req['status'] == 'closed';
+                final statusColor = isClosed
+                    ? AppTheme.success
+                    : AppTheme.primary;
 
-                return Card(
+                return Container(
                   margin: const EdgeInsets.only(bottom: 12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
+                  child: GlassCard(
+                    padding: const EdgeInsets.all(18),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Icon(
-                              Icons.recycling,
-                              color: isClosed ? Colors.grey : Colors.blue,
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: statusColor.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: statusColor,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.recycling,
+                                color: statusColor,
+                                size: 20,
+                              ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Text(
                                 '${req['scrap_type'].toString().toUpperCase()} — ${required.toStringAsFixed(1)}kg',
                                 style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: isClosed ? Colors.grey : null,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                  color: isClosed
+                                      ? AppTheme.textMuted
+                                      : AppTheme.textPrimary,
                                 ),
                               ),
                             ),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
+                                horizontal: 8,
+                                vertical: 3,
                               ),
                               decoration: BoxDecoration(
-                                color: isClosed
-                                    ? Colors.green.shade50
-                                    : req['status'] == 'open'
-                                    ? Colors.blue.shade50
-                                    : Colors.orange.shade50,
-                                borderRadius: BorderRadius.circular(12),
+                                color: statusColor.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: statusColor,
+                                  width: 1.5,
+                                ),
                               ),
                               child: Text(
                                 req['status']
@@ -268,35 +293,31 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
                                     .toUpperCase()
                                     .replaceAll('_', ' '),
                                 style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: isClosed
-                                      ? Colors.green
-                                      : req['status'] == 'open'
-                                      ? Colors.blue
-                                      : Colors.orange,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: statusColor,
                                 ),
                               ),
                             ),
                           ],
                         ),
                         if (req['description'] != null) ...[
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           Text(
                             req['description'],
-                            style: TextStyle(
-                              color: Colors.grey[600],
+                            style: const TextStyle(
+                              color: AppTheme.textMuted,
                               fontSize: 13,
                             ),
                           ),
                         ],
                         const SizedBox(height: 12),
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(4),
                           child: LinearProgressIndicator(
                             value: progress.clamp(0.0, 1.0),
-                            backgroundColor: Colors.grey[200],
-                            color: isClosed ? Colors.green : Colors.blue,
+                            backgroundColor: AppTheme.surfaceLight,
+                            color: statusColor,
                             minHeight: 10,
                           ),
                         ),
@@ -306,29 +327,40 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
                           children: [
                             Text(
                               '${fulfilled.toStringAsFixed(1)} / ${required.toStringAsFixed(1)} kg',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey[600],
+                                color: AppTheme.textMuted,
                               ),
                             ),
                             Text(
                               '${(progress * 100).toStringAsFixed(0)}%',
                               style: TextStyle(
                                 fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: isClosed ? Colors.green : Colors.blue,
+                                fontWeight: FontWeight.w800,
+                                color: statusColor,
                               ),
                             ),
                           ],
                         ),
                         if (req['price_per_kg'] != null) ...[
                           const SizedBox(height: 6),
-                          Text(
-                            '💰 ${req['price_per_kg']} coins/kg',
-                            style: const TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.monetization_on,
+                                color: AppTheme.accent,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${req['price_per_kg']} coins/kg',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.textPrimary,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ],
@@ -422,14 +454,14 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: hasEnough
-                            ? Colors.green.shade50
-                            : Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(8),
+                        color: (hasEnough ? AppTheme.primary : AppTheme.danger)
+                            .withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: hasEnough
-                              ? Colors.green.shade200
-                              : Colors.red.shade200,
+                          color:
+                              (hasEnough ? AppTheme.primary : AppTheme.danger)
+                                  .withValues(alpha: 0.4),
+                          width: 1.5,
                         ),
                       ),
                       child: Column(
@@ -439,13 +471,18 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
                             children: [
                               const Text(
                                 'Total cost:',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.textSecondary,
+                                ),
                               ),
                               Text(
                                 '$totalCost coins',
                                 style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: hasEnough ? Colors.green : Colors.red,
+                                  fontWeight: FontWeight.w800,
+                                  color: hasEnough
+                                      ? AppTheme.primary
+                                      : AppTheme.danger,
                                 ),
                               ),
                             ],
@@ -456,20 +493,26 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
                             children: [
                               const Text(
                                 'Your balance:',
-                                style: TextStyle(fontSize: 12),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.textMuted,
+                                ),
                               ),
                               Text(
                                 '$currentCoins coins',
-                                style: const TextStyle(fontSize: 12),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.textMuted,
+                                ),
                               ),
                             ],
                           ),
                           if (!hasEnough) ...[
                             const SizedBox(height: 8),
                             Text(
-                              '⚠️ You need ${totalCost - currentCoins} more coins. Buy coins first!',
+                              '⚠️ Need ${totalCost - currentCoins} more coins.',
                               style: const TextStyle(
-                                color: Colors.red,
+                                color: AppTheme.danger,
                                 fontSize: 12,
                               ),
                             ),
@@ -495,7 +538,7 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
                   icon: const Icon(Icons.add_shopping_cart, size: 16),
                   label: const Text('Buy Coins'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
+                    backgroundColor: AppTheme.accent,
                     foregroundColor: Colors.white,
                   ),
                 ),
@@ -518,28 +561,22 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
                                     ? null
                                     : descCtrl.text,
                               );
-                          if (mounted) {
+                          if (mounted)
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Requirement posted!'),
-                                backgroundColor: Colors.green,
                               ),
                             );
-                          }
                         } catch (e) {
-                          if (mounted) {
+                          if (mounted)
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('Error: $e'),
-                                backgroundColor: Colors.red,
+                                backgroundColor: AppTheme.danger,
                               ),
                             );
-                          }
                         }
                       },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0D47A1),
-                ),
                 child: const Text('Post'),
               ),
             ],
@@ -551,84 +588,83 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
 
   void _showBuyCoinsDialog(BuildContext context) {
     final amountCtrl = TextEditingController(text: '1000');
-
     showDialog(
       context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) {
-            final inr = double.tryParse(amountCtrl.text) ?? 0;
-            final coins = (inr * 10).toInt(); // ₹1 = 10 coins
-
-            return AlertDialog(
-              title: const Text('Buy Scrap Coins'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('1 Scrap Coin = ₹0.10 (₹1 = 10 Coins)'),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: amountCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Amount in INR (₹)',
-                      prefixText: '₹ ',
-                    ),
-                    onChanged: (val) => setDialogState(() {}),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.purple.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'You will get:',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          '$coins Coins',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.purple,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final inr = double.tryParse(amountCtrl.text) ?? 0;
+          final dialogCoins = (inr * 10).toInt();
+          return AlertDialog(
+            title: const Text('Buy Scrap Coins'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  '1 Scrap Coin = ₹0.10 (₹1 = 10 Coins)',
+                  style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
                 ),
-                ElevatedButton(
-                  onPressed: coins > 0
-                      ? () async {
-                          Navigator.pop(ctx);
-                          _processPayment(inr, coins);
-                        }
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
+                const SizedBox(height: 16),
+                TextField(
+                  controller: amountCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Amount in INR (₹)',
+                    prefixText: '₹ ',
                   ),
-                  child: const Text('Pay with Razorpay'),
+                  onChanged: (_) => setDialogState(() {}),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppTheme.primary, width: 1.5),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'You will get:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      Text(
+                        '$dialogCoins Coins',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
-            );
-          },
-        );
-      },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: dialogCoins > 0
+                    ? () {
+                        Navigator.pop(ctx);
+                        _processPayment(inr, dialogCoins);
+                      }
+                    : null,
+                child: const Text('Pay with Razorpay'),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
-  void _processPayment(double inr, int coins) async {
+  void _processPayment(double inr, int payCoins) async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -636,87 +672,43 @@ class _IndustryDashboardState extends State<IndustryDashboard> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(),
+            SpinKitFadingCube(color: AppTheme.primary, size: 36),
             SizedBox(height: 16),
-            Text('Processing payment securely...'),
+            Text(
+              'Processing payment securely...',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
           ],
         ),
       ),
     );
-
     await Future.delayed(const Duration(seconds: 2));
-
     if (mounted) {
       Navigator.pop(context);
-
       final auth = context.read<AuthProvider>();
       if (auth.userId != null) {
         try {
           await context.read<CoinProvider>().purchaseCoins(
             auth.userId!,
             inr,
-            coins,
+            payCoins,
           );
-          if (mounted) {
+          if (mounted)
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Payment successful! $coins coins added.'),
-                backgroundColor: Colors.green,
+                content: Text('Payment successful! $payCoins coins added.'),
               ),
             );
-          }
         } catch (e) {
-          if (mounted) {
+          if (mounted)
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Payment failed: $e'),
-                backgroundColor: Colors.red,
+                backgroundColor: AppTheme.danger,
               ),
             );
-          }
         }
       }
     }
-  }
-}
-
-class _StatChip extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-
-  const _StatChip({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-            Text(
-              label,
-              style: const TextStyle(color: Colors.white70, fontSize: 11),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/glass_card.dart';
+import '../../widgets/shimmer_loading.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/coin_provider.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
-
   @override
   State<WalletScreen> createState() => _WalletScreenState();
 }
@@ -14,9 +18,7 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadData();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
   }
 
   void _loadData() {
@@ -31,199 +33,193 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   Widget build(BuildContext context) {
     final coins = context.watch<CoinProvider>();
+    final pad = AppTheme.responsivePadding(context);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Scrap Wallet')),
       body: RefreshIndicator(
+        color: AppTheme.primary,
         onRefresh: () async => _loadData(),
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(pad),
           children: [
-            // Balance card
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFF8F00), Color(0xFFFFC107)],
-                ),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.amber.withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
+            // ── Balance Card ──
+            GlassCard(
+              padding: const EdgeInsets.all(28),
               child: Column(
                 children: [
-                  const Icon(
-                    Icons.account_balance_wallet,
-                    size: 48,
-                    color: Colors.white,
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accent,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppTheme.border, width: 2),
+                    ),
+                    child: const Icon(
+                      Icons.account_balance_wallet,
+                      size: 28,
+                      color: AppTheme.textPrimary,
+                    ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   const Text(
                     'Total Scrap Coins',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                    style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '${coins.balance + coins.pendingCoins}',
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: AppTheme.textPrimary,
                       fontSize: 48,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -2,
                     ),
-                  ),
-                  const Text(
-                    'Scrap Coins',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
                   const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
+                      horizontal: 20,
+                      vertical: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(16),
+                      color: AppTheme.surfaceLight,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppTheme.borderLight, width: 2),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        Column(
-                          children: [
-                            const Icon(
-                              Icons.check_circle,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${coins.balance}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                              ),
-                            ),
-                            const Text(
-                              'Earned',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
+                        _BalanceSection(
+                          icon: Icons.check_circle,
+                          value: '${coins.balance}',
+                          label: 'Earned',
+                          color: AppTheme.success,
                         ),
-                        Container(width: 1, height: 40, color: Colors.white38),
-                        Column(
-                          children: [
-                            const Icon(
-                              Icons.hourglass_empty,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${coins.pendingCoins}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                              ),
-                            ),
-                            const Text(
-                              'Pending',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
+                        Container(
+                          width: 2,
+                          height: 36,
+                          color: AppTheme.borderLight,
+                        ),
+                        _BalanceSection(
+                          icon: Icons.hourglass_empty,
+                          value: '${coins.pendingCoins}',
+                          label: 'Pending',
+                          color: AppTheme.accent,
                         ),
                       ],
                     ),
                   ),
                 ],
               ),
-            ),
+            ).animate().fadeIn(duration: 400.ms),
+            const SizedBox(height: 20),
+
+            // ── Buy Coins ──
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: () => _showBuyCoinsDialog(context),
+                icon: const Icon(Icons.add_shopping_cart, size: 20),
+                label: const Text('Buy Scrap Coins'),
+              ),
+            ).animate().fadeIn(delay: 200.ms),
             const SizedBox(height: 24),
 
-            ElevatedButton.icon(
-              onPressed: () => _showBuyCoinsDialog(context),
-              icon: const Icon(Icons.add_shopping_cart),
-              label: const Text('Buy Scrap Coins (Razorpay Simulator)'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6A1B9A),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
+            // ── Transactions ──
+            const Text(
+              'Transaction History',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
               ),
             ),
-            const SizedBox(height: 24),
-
-            Text(
-              'Transaction History',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
             const SizedBox(height: 12),
-
             if (coins.isLoading)
-              const Center(child: CircularProgressIndicator())
+              const ShimmerList(itemCount: 5, itemHeight: 68)
             else if (coins.transactions.isEmpty)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.receipt_long,
-                        size: 48,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'No transactions yet',
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
+              GlassCard(
+                padding: const EdgeInsets.all(32),
+                child: const Column(
+                  children: [
+                    Icon(
+                      Icons.receipt_long,
+                      size: 48,
+                      color: AppTheme.borderLight,
+                    ),
+                    SizedBox(height: 12),
+                    Text(
+                      'No transactions yet',
+                      style: TextStyle(color: AppTheme.textMuted),
+                    ),
+                  ],
                 ),
               )
             else
               ...coins.transactions.map((t) {
                 final isEarning = (t['amount'] as int) > 0;
-                return Card(
+                final color = isEarning ? AppTheme.success : AppTheme.danger;
+                return Container(
                   margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: isEarning
-                          ? Colors.green.shade50
-                          : Colors.red.shade50,
-                      child: Icon(
-                        isEarning ? Icons.arrow_downward : Icons.arrow_upward,
-                        color: isEarning ? Colors.green : Colors.red,
-                      ),
+                  child: GlassCard(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
                     ),
-                    title: Text(
-                      t['description'] ?? t['type'],
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                    subtitle: Text(
-                      _formatDate(t['created_at']),
-                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-                    ),
-                    trailing: Text(
-                      '${isEarning ? '+' : ''}${t['amount']}',
-                      style: TextStyle(
-                        color: isEarning ? Colors.green : Colors.red,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: color, width: 1.5),
+                          ),
+                          child: Icon(
+                            isEarning
+                                ? Icons.arrow_downward
+                                : Icons.arrow_upward,
+                            color: color,
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                t['description'] ?? t['type'],
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.textPrimary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _formatDate(t['created_at']),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppTheme.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          '${isEarning ? '+' : ''}${t['amount']}',
+                          style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 );
@@ -242,88 +238,84 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   void _showBuyCoinsDialog(BuildContext context) {
-    final amountCtrl = TextEditingController(text: '1000'); // Default ₹1000
-
+    final amountCtrl = TextEditingController(text: '1000');
     showDialog(
       context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) {
-            final inr = double.tryParse(amountCtrl.text) ?? 0;
-            final coins = (inr * 10).toInt(); // ₹1 = 10 coins
-
-            return AlertDialog(
-              title: const Text('Buy Scrap Coins'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('1 Scrap Coin = ₹0.10 (₹1 = 10 Coins)'),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: amountCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Amount in INR (₹)',
-                      prefixText: '₹ ',
-                    ),
-                    onChanged: (val) {
-                      setDialogState(() {});
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.purple.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'You will get:',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          '$coins Coins',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.purple,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final inr = double.tryParse(amountCtrl.text) ?? 0;
+          final dialogCoins = (inr * 10).toInt();
+          return AlertDialog(
+            title: const Text('Buy Scrap Coins'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  '1 Scrap Coin = ₹0.10 (₹1 = 10 Coins)',
+                  style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
                 ),
-                ElevatedButton(
-                  onPressed: coins > 0
-                      ? () async {
-                          Navigator.pop(ctx);
-                          _processPayment(inr, coins);
-                        }
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue, // Razorpay blue
-                    foregroundColor: Colors.white,
+                const SizedBox(height: 16),
+                TextField(
+                  controller: amountCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Amount in INR (₹)',
+                    prefixText: '₹ ',
                   ),
-                  child: const Text('Pay with Razorpay'),
+                  onChanged: (_) => setDialogState(() {}),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppTheme.primary, width: 1.5),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'You will get:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      Text(
+                        '$dialogCoins Coins',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
-            );
-          },
-        );
-      },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: dialogCoins > 0
+                    ? () {
+                        Navigator.pop(ctx);
+                        _processPayment(inr, dialogCoins);
+                      }
+                    : null,
+                child: const Text('Pay with Razorpay'),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
-  void _processPayment(double inr, int coins) async {
-    // Show a simulated payment loading indicator
+  void _processPayment(double inr, int payCoins) async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -331,47 +323,75 @@ class _WalletScreenState extends State<WalletScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(),
+            SpinKitFadingCube(color: AppTheme.primary, size: 36),
             SizedBox(height: 16),
-            Text('Processing payment securely...'),
+            Text(
+              'Processing payment securely...',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
           ],
         ),
       ),
     );
-
-    // Simulate network delay
     await Future.delayed(const Duration(seconds: 2));
-
     if (mounted) {
-      Navigator.pop(context); // Close loading dialog
-
+      Navigator.pop(context);
       final auth = context.read<AuthProvider>();
       if (auth.userId != null) {
         try {
           await context.read<CoinProvider>().purchaseCoins(
             auth.userId!,
             inr,
-            coins,
+            payCoins,
           );
-          if (mounted) {
+          if (mounted)
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Payment successful! Coins added.'),
-                backgroundColor: Colors.green,
-              ),
+              const SnackBar(content: Text('Payment successful! Coins added.')),
             );
-          }
         } catch (e) {
-          if (mounted) {
+          if (mounted)
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Payment failed: $e'),
-                backgroundColor: Colors.red,
+                backgroundColor: AppTheme.danger,
               ),
             );
-          }
         }
       }
     }
+  }
+}
+
+class _BalanceSection extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color color;
+  const _BalanceSection({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.color,
+  });
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 18),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            color: AppTheme.textPrimary,
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+          ),
+        ),
+        Text(
+          label,
+          style: const TextStyle(color: AppTheme.textMuted, fontSize: 11),
+        ),
+      ],
+    );
   }
 }

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/glass_card.dart';
+import '../../widgets/shimmer_loading.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/scrap_provider.dart';
 import '../../providers/coin_provider.dart';
@@ -10,7 +14,6 @@ import '../common/profile_screen.dart';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
-
   @override
   State<UserDashboard> createState() => _UserDashboardState();
 }
@@ -38,51 +41,58 @@ class _UserDashboardState extends State<UserDashboard> {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      _HomeTab(),
+      const _HomeTab(),
       const DonateScrapScreen(),
       const MarketplaceScreen(),
       const WalletScreen(),
     ];
-
     return Scaffold(
       body: pages[_currentIndex],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (i) => setState(() => _currentIndex = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.add_circle_outline),
-            selectedIcon: Icon(Icons.add_circle),
-            label: 'Donate',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.shopping_bag_outlined),
-            selectedIcon: Icon(Icons.shopping_bag),
-            label: 'Shop',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: Icon(Icons.account_balance_wallet),
-            label: 'Wallet',
-          ),
-        ],
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: AppTheme.border, width: 2)),
+        ),
+        child: NavigationBar(
+          selectedIndex: _currentIndex,
+          onDestinationSelected: (i) => setState(() => _currentIndex = i),
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
+              label: 'Home',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.add_circle_outline),
+              selectedIcon: Icon(Icons.add_circle),
+              label: 'Donate',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.shopping_bag_outlined),
+              selectedIcon: Icon(Icons.shopping_bag),
+              label: 'Shop',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.account_balance_wallet_outlined),
+              selectedIcon: Icon(Icons.account_balance_wallet),
+              label: 'Wallet',
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _HomeTab extends StatelessWidget {
+  const _HomeTab();
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final coins = context.watch<CoinProvider>();
     final scrap = context.watch<ScrapProvider>();
     final profile = auth.profile;
+    final pad = AppTheme.responsivePadding(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -102,6 +112,7 @@ class _HomeTab extends StatelessWidget {
         ],
       ),
       body: RefreshIndicator(
+        color: AppTheme.primary,
         onRefresh: () async {
           if (auth.userId != null) {
             await context.read<ScrapProvider>().fetchMyRequests(auth.userId!);
@@ -109,58 +120,56 @@ class _HomeTab extends StatelessWidget {
           }
         },
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(pad),
           children: [
-            // Welcome card
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
-                ),
-                borderRadius: BorderRadius.circular(20),
-              ),
+            // ── Welcome Card ──
+            GlassCard(
+              padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Welcome, ${profile?['name'] ?? 'User'}! 👋',
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: AppTheme.textPrimary,
                       fontSize: 22,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   const Text(
                     'Turn your scrap into value',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 14,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
+                      horizontal: 14,
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
+                      color: AppTheme.accent,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppTheme.border, width: 2),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(
                           Icons.monetization_on,
-                          color: Colors.amber,
-                          size: 24,
+                          color: AppTheme.textPrimary,
+                          size: 20,
                         ),
                         const SizedBox(width: 8),
                         Text(
                           '${coins.balance} Scrap Coins',
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ],
@@ -168,165 +177,238 @@ class _HomeTab extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
+            ).animate().fadeIn(duration: 400.ms),
             const SizedBox(height: 20),
 
-            // Stats cards
-            Text(
+            // ── Quick Stats ──
+            const Text(
               'Quick Stats',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.recycling,
-                    label: 'Donations',
-                    value: '${scrap.myRequests.length}',
-                    color: Colors.green,
+            if (scrap.isLoading)
+              const ShimmerGrid(
+                itemCount: 3,
+                crossAxisCount: 3,
+                childAspectRatio: 0.85,
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: GlassStatCard(
+                      icon: Icons.recycling,
+                      value: '${scrap.myRequests.length}',
+                      label: 'Donations',
+                      iconColor: AppTheme.primary,
+                    ).animate().fadeIn(delay: 100.ms),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.check_circle,
-                    label: 'Completed',
-                    value:
-                        '${scrap.myRequests.where((r) => r['status'] == 'completed').length}',
-                    color: Colors.blue,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GlassStatCard(
+                      icon: Icons.check_circle,
+                      value:
+                          '${scrap.myRequests.where((r) => r['status'] == 'completed').length}',
+                      label: 'Completed',
+                      iconColor: AppTheme.secondary,
+                    ).animate().fadeIn(delay: 200.ms),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.pending,
-                    label: 'Pending',
-                    value:
-                        '${scrap.myRequests.where((r) => r['status'] == 'pending').length}',
-                    color: Colors.orange,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GlassStatCard(
+                      icon: Icons.pending,
+                      value:
+                          '${scrap.myRequests.where((r) => r['status'] == 'pending').length}',
+                      label: 'Pending',
+                      iconColor: AppTheme.accent,
+                    ).animate().fadeIn(delay: 300.ms),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
             const SizedBox(height: 24),
 
-            // Coin rates
-            Text(
+            // ── Coin Rates ──
+            const Text(
               'Scrap Coin Rates',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
             ),
             const SizedBox(height: 12),
-            Card(
+            GlassCard(
+              padding: const EdgeInsets.symmetric(vertical: 8),
               child: Column(
                 children: [
-                  _CoinRateTile('Iron', 30, Icons.hardware, Colors.grey),
-                  _CoinRateTile('Plastic', 20, Icons.water_drop, Colors.blue),
+                  _CoinRateTile('Iron', 30, Icons.hardware, Colors.blueGrey),
+                  _CoinRateTile(
+                    'Plastic',
+                    20,
+                    Icons.water_drop,
+                    const Color(0xFF3B82F6),
+                  ),
                   _CoinRateTile(
                     'Copper',
                     40,
                     Icons.electric_bolt,
-                    Colors.orange,
+                    AppTheme.accent,
                   ),
-                  _CoinRateTile('Glass', 20, Icons.wine_bar, Colors.teal),
-                  _CoinRateTile('E-waste', 50, Icons.devices, Colors.purple),
+                  _CoinRateTile(
+                    'Glass',
+                    20,
+                    Icons.wine_bar,
+                    AppTheme.secondary,
+                  ),
+                  _CoinRateTile(
+                    'E-waste',
+                    50,
+                    Icons.devices,
+                    const Color(0xFF8B5CF6),
+                  ),
                 ],
               ),
-            ),
+            ).animate().fadeIn(delay: 400.ms),
             const SizedBox(height: 24),
 
-            // Recent donations
-            Text(
+            // ── Recent Donations ──
+            const Text(
               'Recent Donations',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
             ),
             const SizedBox(height: 12),
-            if (scrap.myRequests.isEmpty)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    children: [
-                      Icon(Icons.recycling, size: 48, color: Colors.grey[400]),
-                      const SizedBox(height: 12),
-                      Text(
-                        'No donations yet',
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text('Start donating scrap to earn coins!'),
-                    ],
-                  ),
+            if (scrap.isLoading)
+              const ShimmerList(itemCount: 3, itemHeight: 72)
+            else if (scrap.myRequests.isEmpty)
+              GlassCard(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  children: [
+                    const Icon(
+                      Icons.recycling,
+                      size: 48,
+                      color: AppTheme.borderLight,
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'No donations yet',
+                      style: TextStyle(color: AppTheme.textMuted),
+                    ),
+                    const Text(
+                      'Start donating scrap to earn coins!',
+                      style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                    ),
+                  ],
                 ),
               )
             else
-              ...scrap.myRequests
-                  .take(5)
-                  .map(
-                    (req) => Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: _getScrapColor(
-                            req['scrap_type'],
-                          ).withOpacity(0.1),
+              ...scrap.myRequests.take(5).map((req) {
+                final color = _getScrapColor(req['scrap_type'] ?? 'other');
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: GlassCard(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: color.withValues(alpha: 0.3),
+                              width: 1.5,
+                            ),
+                          ),
                           child: Icon(
-                            _getScrapIcon(req['scrap_type']),
-                            color: _getScrapColor(req['scrap_type']),
+                            _getScrapIcon(req['scrap_type'] ?? 'other'),
+                            color: color,
+                            size: 20,
                           ),
                         ),
-                        title: Text(
-                          '${req['scrap_type'].toString().toUpperCase()} - ${req['weight_kg']}kg',
-                        ),
-                        subtitle: Text('Status: ${req['status']}'),
-                        trailing:
-                            req['coins_awarded'] != null &&
-                                req['coins_awarded'] > 0
-                            ? Chip(
-                                label: Text(
-                                  '+${req['coins_awarded']}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                  ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${(req['scrap_type'] ?? 'other').toString().toUpperCase()} — ${req['weight_kg']}kg',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: AppTheme.textPrimary,
                                 ),
-                                backgroundColor: Colors.amber[700],
-                                padding: EdgeInsets.zero,
-                              )
-                            : null,
-                      ),
+                              ),
+                              const SizedBox(height: 4),
+                              _StatusBadge(status: req['status'] ?? 'pending'),
+                            ],
+                          ),
+                        ),
+                        if (req['coins_awarded'] != null &&
+                            req['coins_awarded'] > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.accent.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: AppTheme.accent,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Text(
+                              '+${req['coins_awarded']}',
+                              style: const TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
+                );
+              }),
+            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
-  Color _getScrapColor(String type) {
+  static Color _getScrapColor(String type) {
     switch (type) {
       case 'iron':
-        return Colors.grey[700]!;
+        return Colors.blueGrey;
       case 'plastic':
-        return Colors.blue;
+        return const Color(0xFF3B82F6);
       case 'copper':
-        return Colors.orange;
+        return AppTheme.accent;
       case 'glass':
-        return Colors.teal;
+        return AppTheme.secondary;
       case 'ewaste':
-        return Colors.purple;
+        return const Color(0xFF8B5CF6);
       default:
-        return Colors.grey;
+        return AppTheme.textMuted;
     }
   }
 
-  IconData _getScrapIcon(String type) {
+  static IconData _getScrapIcon(String type) {
     switch (type) {
       case 'iron':
         return Icons.hardware;
@@ -344,41 +426,40 @@ class _HomeTab extends StatelessWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-
-  const _StatCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
+class _StatusBadge extends StatelessWidget {
+  final String status;
+  const _StatusBadge({required this.status});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            Text(
-              label,
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-            ),
-          ],
+    Color color;
+    switch (status) {
+      case 'completed':
+        color = AppTheme.success;
+        break;
+      case 'accepted':
+        color = AppTheme.secondary;
+        break;
+      case 'pending':
+        color = AppTheme.accent;
+        break;
+      default:
+        color = AppTheme.textMuted;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color, width: 1.5),
+      ),
+      child: Text(
+        status.toUpperCase(),
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
         ),
       ),
     );
@@ -390,22 +471,45 @@ class _CoinRateTile extends StatelessWidget {
   final int rate;
   final IconData icon;
   final Color color;
-
   const _CoinRateTile(this.type, this.rate, this.icon, this.color);
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon, color: color),
-      title: Text(type),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
         children: [
-          const Icon(Icons.monetization_on, color: Colors.amber, size: 18),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: color.withValues(alpha: 0.3),
+                width: 1.5,
+              ),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              type,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ),
+          const Icon(Icons.monetization_on, color: AppTheme.accent, size: 16),
           const SizedBox(width: 4),
           Text(
             '$rate / kg',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              color: AppTheme.textPrimary,
+              fontSize: 14,
+            ),
           ),
         ],
       ),
