@@ -313,76 +313,131 @@ class _PickupRequests extends StatefulWidget {
 }
 
 class _PickupRequestsState extends State<_PickupRequests> {
+  String _selectedFilter = 'all';
+
   @override
   void initState() {
     super.initState();
-    context.read<ScrapProvider>().fetchAvailableRequests();
+    // Fetch requests passing the current user (partner) ID
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<ScrapProvider>().fetchAvailableRequests(
+          context.read<AuthProvider>().userId!,
+        );
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final scrap = context.watch<ScrapProvider>();
+
+    final filteredRequests = _selectedFilter == 'all'
+        ? scrap.availableRequests
+        : scrap.availableRequests
+              .where((r) => r['scrap_type'] == _selectedFilter)
+              .toList();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scrap Pickups'),
         backgroundColor: const Color(0xFF6A1B9A),
       ),
-      body: scrap.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : scrap.availableRequests.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.inbox, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 12),
-                  Text(
-                    'No pending requests',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: () => scrap.fetchAvailableRequests(),
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: scrap.availableRequests.length,
-                itemBuilder: (context, i) {
-                  final req = scrap.availableRequests[i];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: ListTile(
-                      leading: const CircleAvatar(child: Icon(Icons.recycling)),
-                      title: Text(
-                        '${req['scrap_type'].toString().toUpperCase()} - ${req['weight_kg']}kg',
-                      ),
-                      subtitle: Text(req['profiles']?['name'] ?? 'User'),
-                      trailing: ElevatedButton(
-                        onPressed: () async {
-                          await scrap.acceptRequest(
-                            req['id'],
-                            context.read<AuthProvider>().userId!,
-                          );
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Request accepted!'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          }
+      body: Column(
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children:
+                  [
+                    'all',
+                    'iron',
+                    'plastic',
+                    'copper',
+                    'glass',
+                    'ewaste',
+                    'other',
+                  ].map((type) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: ChoiceChip(
+                        label: Text(type.toUpperCase()),
+                        selected: _selectedFilter == type,
+                        onSelected: (selected) {
+                          if (selected) setState(() => _selectedFilter = type);
                         },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF6A1B9A),
-                        ),
-                        child: const Text('Accept'),
+                        selectedColor: const Color(0xFF6A1B9A).withOpacity(0.2),
                       ),
-                    ),
-                  );
-                },
-              ),
+                    );
+                  }).toList(),
             ),
+          ),
+          Expanded(
+            child: scrap.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : filteredRequests.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.inbox, size: 64, color: Colors.grey[400]),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No pending requests for this filter',
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: () => scrap.fetchAvailableRequests(
+                      context.read<AuthProvider>().userId!,
+                    ),
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: filteredRequests.length,
+                      itemBuilder: (context, i) {
+                        final req = filteredRequests[i];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: ListTile(
+                            leading: const CircleAvatar(
+                              child: Icon(Icons.recycling),
+                            ),
+                            title: Text(
+                              '${req['scrap_type'].toString().toUpperCase()} - ${req['weight_kg']}kg',
+                            ),
+                            subtitle: Text(req['profiles']?['name'] ?? 'User'),
+                            trailing: ElevatedButton(
+                              onPressed: () async {
+                                await scrap.acceptRequest(
+                                  req['id'],
+                                  context.read<AuthProvider>().userId!,
+                                );
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Request accepted!'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF6A1B9A),
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Accept'),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }

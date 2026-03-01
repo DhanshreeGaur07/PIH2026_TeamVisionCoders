@@ -25,11 +25,14 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   void _loadData() {
-    final auth = context.read<AuthProvider>();
-    if (auth.userId != null) {
-      context.read<ScrapProvider>().fetchMyRequests(auth.userId!);
-      context.read<CoinProvider>().fetchBalance(auth.userId!);
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final auth = context.read<AuthProvider>();
+      if (auth.userId != null) {
+        context.read<ScrapProvider>().fetchMyRequests(auth.userId!);
+        context.read<CoinProvider>().fetchBalance(auth.userId!);
+      }
+    });
   }
 
   @override
