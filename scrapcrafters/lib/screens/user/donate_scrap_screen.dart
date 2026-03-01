@@ -2,15 +2,17 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/glass_card.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/scrap_provider.dart';
 
 class DonateScrapScreen extends StatefulWidget {
   const DonateScrapScreen({super.key});
-
   @override
   State<DonateScrapScreen> createState() => _DonateScrapScreenState();
 }
@@ -21,7 +23,6 @@ class _DonateScrapScreenState extends State<DonateScrapScreen> {
   final _descriptionController = TextEditingController();
   final _addressController = TextEditingController();
 
-  // Static cache: persists across screen rebuilds so GPS isn't re-fetched
   static LatLng? _cachedLocation;
   static bool _locationFetched = false;
 
@@ -30,42 +31,43 @@ class _DonateScrapScreenState extends State<DonateScrapScreen> {
   XFile? _imageFile;
   LatLng? _selectedLocation;
   bool _isLocating = false;
-  final MapController _mapController = MapController();
+  bool _isSubmitting = false;
+  GoogleMapController? _googleMapController;
 
   final List<Map<String, dynamic>> _scrapTypes = [
     {
       'value': 'iron',
       'label': 'Iron / Metal',
       'icon': Icons.hardware,
-      'color': Colors.grey,
+      'color': Colors.blueGrey,
       'coins': 30,
     },
     {
       'value': 'plastic',
       'label': 'Plastic',
       'icon': Icons.water_drop,
-      'color': Colors.blue,
+      'color': const Color(0xFF3B82F6),
       'coins': 20,
     },
     {
       'value': 'copper',
       'label': 'Copper',
       'icon': Icons.electric_bolt,
-      'color': Colors.orange,
+      'color': AppTheme.accent,
       'coins': 40,
     },
     {
       'value': 'glass',
       'label': 'Glass',
       'icon': Icons.wine_bar,
-      'color': Colors.teal,
+      'color': AppTheme.secondary,
       'coins': 20,
     },
     {
       'value': 'ewaste',
       'label': 'E-Waste',
       'icon': Icons.devices,
-      'color': Colors.purple,
+      'color': const Color(0xFF8B5CF6),
       'coins': 50,
     },
     {
@@ -80,7 +82,6 @@ class _DonateScrapScreenState extends State<DonateScrapScreen> {
   @override
   void initState() {
     super.initState();
-    // Restore cached location if available, otherwise auto-fetch once
     if (_cachedLocation != null) {
       _selectedLocation = _cachedLocation;
     } else if (!_locationFetched) {
@@ -95,6 +96,7 @@ class _DonateScrapScreenState extends State<DonateScrapScreen> {
     _weightController.dispose();
     _descriptionController.dispose();
     _addressController.dispose();
+    _googleMapController?.dispose();
     super.dispose();
   }
 
@@ -103,50 +105,45 @@ class _DonateScrapScreenState extends State<DonateScrapScreen> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) throw 'Location services are disabled.';
-
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          throw 'Location permissions are denied';
-        }
+        if (permission == LocationPermission.denied)
+          throw 'Location permissions denied';
       }
-      if (permission == LocationPermission.deniedForever) {
-        throw 'Location permissions are permanently denied.';
-      }
-
+      if (permission == LocationPermission.deniedForever)
+        throw 'Location permissions permanently denied.';
       Position? position;
       try {
         position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-          timeLimit: const Duration(seconds: 5),
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 5),
+          ),
         );
-      } catch (e) {
-        // Fallback for emulators or spots where getting a fix hangs
+      } catch (_) {
         position = await Geolocator.getLastKnownPosition();
       }
-
-      if (position == null) {
-        throw 'Location unavailable. Make sure GPS is enabled and mocked on emulator.';
-      }
-
+      if (position == null) throw 'Location unavailable.';
       final pt = LatLng(position.latitude, position.longitude);
-      // Cache for future screen visits
       _cachedLocation = pt;
       _locationFetched = true;
       setState(() {
         _selectedLocation = pt;
         _isLocating = false;
       });
-      try {
-        _mapController.move(pt, 15.0);
-      } catch (_) {}
+      _googleMapController?.animateCamera(
+        CameraUpdate.newCameraPosition(CameraPosition(target: pt, zoom: 15.0)),
+      );
     } catch (e) {
       setState(() => _isLocating = false);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not get location: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not get location: $e'),
+            backgroundColor: AppTheme.danger,
+          ),
+        );
       }
     }
   }
@@ -165,9 +162,7 @@ class _DonateScrapScreenState extends State<DonateScrapScreen> {
       source: ImageSource.gallery,
       imageQuality: 70,
     );
-    if (picked != null) {
-      setState(() => _imageFile = picked);
-    }
+    if (picked != null) setState(() => _imageFile = picked);
   }
 
   Future<void> _submit() async {
@@ -176,23 +171,20 @@ class _DonateScrapScreenState extends State<DonateScrapScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select a pickup location on the map'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppTheme.danger,
         ),
       );
       return;
     }
-
+    setState(() => _isSubmitting = true);
     final auth = context.read<AuthProvider>();
-
     try {
       Uint8List? imageBytes;
       String? imageExt;
-
       if (_imageFile != null) {
         imageBytes = await _imageFile!.readAsBytes();
         imageExt = _imageFile!.name.split('.').last;
       }
-
       await context.read<ScrapProvider>().donateScrap(
         userId: auth.userId!,
         scrapType: _selectedScrapType,
@@ -208,17 +200,20 @@ class _DonateScrapScreenState extends State<DonateScrapScreen> {
         imageBytes: imageBytes,
         imageExt: imageExt,
       );
-
-      setState(() => _submitted = true);
-
-      // Refresh data
+      setState(() {
+        _submitted = true;
+        _isSubmitting = false;
+      });
       context.read<ScrapProvider>().fetchMyRequests(auth.userId!);
     } catch (e) {
-      if (mounted) {
+      setState(() => _isSubmitting = false);
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppTheme.danger,
+          ),
         );
-      }
     }
   }
 
@@ -236,47 +231,63 @@ class _DonateScrapScreenState extends State<DonateScrapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final pad = AppTheme.responsivePadding(context);
+
     if (_submitted) {
       return Scaffold(
         appBar: AppBar(title: const Text('Donate Scrap')),
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.check_circle,
-                    size: 64,
-                    color: Color(0xFF2E7D32),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Donation Submitted!',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'A partner will pick up your scrap soon.\nYou\'ll earn ~$_estimatedCoins Scrap Coins!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 15),
-                ),
-                const SizedBox(height: 32),
-                ElevatedButton.icon(
-                  onPressed: _reset,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Donate More'),
-                ),
-              ],
+            padding: EdgeInsets.all(pad),
+            child: GlassCard(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppTheme.success,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppTheme.border, width: 2),
+                    ),
+                    child: const Icon(
+                      Icons.check,
+                      size: 36,
+                      color: Colors.white,
+                    ),
+                  ).animate().scale(duration: 500.ms, curve: Curves.elasticOut),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Scrap Donated!',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ).animate().fadeIn(delay: 200.ms),
+                  const SizedBox(height: 8),
+                  Text(
+                    'You\'ll earn ~$_estimatedCoins Coins when picked up',
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ).animate().fadeIn(delay: 300.ms),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'A nearby partner will pick it up soon.',
+                    style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                  ).animate().fadeIn(delay: 400.ms),
+                  const SizedBox(height: 28),
+                  ElevatedButton.icon(
+                    onPressed: _reset,
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Donate More'),
+                  ).animate().fadeIn(delay: 500.ms),
+                ],
+              ),
             ),
           ),
         ),
@@ -285,346 +296,340 @@ class _DonateScrapScreenState extends State<DonateScrapScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Donate Scrap')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Select Scrap Type',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: EdgeInsets.all(pad),
+          children: [
+            // ── Scrap Type ──
+            const Text(
+              'Select Scrap Type',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
               ),
-              const SizedBox(height: 12),
-
-              // Scrap type grid
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  childAspectRatio: 1,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-                itemCount: _scrapTypes.length,
-                itemBuilder: (context, i) {
-                  final type = _scrapTypes[i];
-                  final selected = _selectedScrapType == type['value'];
-                  return GestureDetector(
-                    onTap: () => setState(
-                      () => _selectedScrapType = type['value'] as String,
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _scrapTypes.map((t) {
+                final selected = _selectedScrapType == t['value'];
+                final color = t['color'] as Color;
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedScrapType = t['value']),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
                     ),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? (type['color'] as Color).withOpacity(0.15)
-                            : Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: selected
-                              ? type['color'] as Color
-                              : Colors.grey.shade200,
-                          width: selected ? 2 : 1,
-                        ),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? color.withValues(alpha: 0.1)
+                          : AppTheme.surface,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: selected ? color : AppTheme.borderLight,
+                        width: 2,
                       ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            type['icon'] as IconData,
-                            color: type['color'] as Color,
-                            size: 32,
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            type['label'] as String,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: selected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                            ),
-                          ),
-                          Text(
-                            '${type['coins']}/kg',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 20),
-
-              TextFormField(
-                controller: _weightController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'Weight (kg)',
-                  prefixIcon: Icon(Icons.scale),
-                  suffixText: 'kg',
-                ),
-                validator: (v) {
-                  if (v == null || v.isEmpty) return 'Enter weight';
-                  final w = double.tryParse(v);
-                  if (w == null || w <= 0) return 'Enter valid weight';
-                  return null;
-                },
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 14),
-
-              // Estimated coins
-              if (_weightController.text.isNotEmpty &&
-                  double.tryParse(_weightController.text) != null)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.amber.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.monetization_on,
-                        color: Colors.amber,
-                        size: 24,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Estimated reward: $_estimatedCoins Scrap Coins',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                ),
-
-              TextFormField(
-                controller: _descriptionController,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Description (optional)',
-                  prefixIcon: Icon(Icons.description),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              Text(
-                'Pickup Location (Required)',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-
-              Container(
-                height: 250,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey.shade300, width: 2),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: Stack(
-                    children: [
-                      FlutterMap(
-                        mapController: _mapController,
-                        options: MapOptions(
-                          initialCenter:
-                              _selectedLocation ??
-                              const LatLng(28.6139, 77.2090),
-                          initialZoom: 13.0,
-                          onTap: (tapPosition, point) {
-                            setState(() => _selectedLocation = point);
-                          },
-                        ),
-                        children: [
-                          TileLayer(
-                            urlTemplate:
-                                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                            userAgentPackageName: 'com.example.scrapcrafters',
-                          ),
-                          if (_selectedLocation != null)
-                            MarkerLayer(
-                              markers: [
-                                Marker(
-                                  point: _selectedLocation!,
-                                  width: 40,
-                                  height: 40,
-                                  child: const Icon(
-                                    Icons.location_pin,
-                                    color: Colors.blueAccent,
-                                    size: 40,
-                                  ),
-                                ),
-                              ],
-                            ),
-                        ],
-                      ),
-                      Positioned(
-                        right: 12,
-                        bottom: 12,
-                        child: FloatingActionButton(
-                          mini: true,
-                          heroTag: 'map_fab',
-                          backgroundColor: Colors.white,
-                          child: _isLocating
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.my_location,
-                                  color: Colors.blueAccent,
-                                ),
-                          onPressed: _getCurrentLocation,
-                        ),
-                      ),
-                      if (_selectedLocation == null)
-                        IgnorePointer(
-                          child: Container(
-                            color: Colors.black26,
-                            child: const Center(
-                              child: Text(
-                                'Tap map to drop pin',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
+                      boxShadow: selected
+                          ? [
+                              const BoxShadow(
+                                color: AppTheme.shadow,
+                                offset: Offset(3, 3),
+                                blurRadius: 0,
                               ),
-                            ),
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          t['icon'] as IconData,
+                          size: 18,
+                          color: selected ? color : AppTheme.textMuted,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          t['label'] as String,
+                          style: TextStyle(
+                            color: selected ? color : AppTheme.textSecondary,
+                            fontWeight: selected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            fontSize: 13,
                           ),
                         ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              TextFormField(
-                controller: _addressController,
-                decoration: const InputDecoration(
-                  labelText: 'Detailed Address (Flat no, Street)',
-                  prefixIcon: Icon(Icons.location_on_outlined),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              Text(
-                'Add Photo (Optional)',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-
-              GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  width: double.infinity,
-                  height: 150,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.grey.shade300,
-                      width: 2,
-                      style: BorderStyle.solid,
+                      ],
                     ),
                   ),
-                  child: _imageFile != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              Image.network(
-                                _imageFile!.path,
-                                fit: BoxFit.cover,
-                                errorBuilder: (ctx, err, _) => const Center(
-                                  child: Icon(Icons.broken_image),
-                                ),
-                              ),
-                              Positioned(
-                                top: 8,
-                                right: 8,
-                                child: CircleAvatar(
-                                  backgroundColor: Colors.white,
-                                  radius: 16,
-                                  child: IconButton(
-                                    padding: EdgeInsets.zero,
-                                    icon: const Icon(
-                                      Icons.close,
-                                      size: 18,
-                                      color: Colors.red,
-                                    ),
-                                    onPressed: () =>
-                                        setState(() => _imageFile = null),
-                                  ),
-                                ),
-                              ),
-                            ],
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 20),
+
+            // ── Weight + Coins ──
+            GlassCard(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextFormField(
+                    controller: _weightController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Weight (kg)',
+                      prefixIcon: Icon(Icons.scale),
+                      hintText: 'e.g. 5.0',
+                    ),
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return 'Enter weight';
+                      final w = double.tryParse(v);
+                      if (w == null || w <= 0) return 'Enter valid weight';
+                      return null;
+                    },
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  if (_estimatedCoins > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accent.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: AppTheme.accent,
+                            width: 1.5,
                           ),
-                        )
-                      : Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.add_a_photo,
-                              size: 48,
-                              color: Colors.grey.shade400,
+                            const Icon(
+                              Icons.monetization_on,
+                              color: AppTheme.accent,
+                              size: 18,
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(width: 6),
                             Text(
-                              'Tap to upload image',
-                              style: TextStyle(color: Colors.grey.shade600),
+                              'Estimated: $_estimatedCoins Coins',
+                              style: const TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                              ),
                             ),
                           ],
                         ),
-                ),
+                      ),
+                    ),
+                ],
               ),
+            ),
+            const SizedBox(height: 16),
 
-              const SizedBox(height: 32),
-
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: Consumer<ScrapProvider>(
-                  builder: (context, sp, _) => ElevatedButton.icon(
-                    onPressed: sp.isLoading ? null : _submit,
-                    icon: sp.isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.recycling),
-                    label: const Text('Submit Donation'),
+            // ── Details ──
+            GlassCard(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: _descriptionController,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Description (optional)',
+                      prefixIcon: Icon(Icons.notes),
+                    ),
                   ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _addressController,
+                    decoration: const InputDecoration(
+                      labelText: 'Pickup Address (optional)',
+                      prefixIcon: Icon(Icons.home_outlined),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Image Picker ──
+            GlassCard(
+              onTap: _pickImage,
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color:
+                          (_imageFile != null
+                                  ? AppTheme.success
+                                  : AppTheme.textMuted)
+                              .withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: _imageFile != null
+                            ? AppTheme.success
+                            : AppTheme.borderLight,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Icon(
+                      _imageFile != null
+                          ? Icons.check_circle
+                          : Icons.camera_alt,
+                      color: _imageFile != null
+                          ? AppTheme.success
+                          : AppTheme.textMuted,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _imageFile != null ? 'Image selected' : 'Add a photo',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: _imageFile != null
+                                ? AppTheme.success
+                                : AppTheme.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          _imageFile != null
+                              ? _imageFile!.name
+                              : 'Tap to pick from gallery',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Google Map ──
+            const Text(
+              'Pickup Location',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            GlassCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  SizedBox(
+                    height: 250,
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(8),
+                      ),
+                      child: GoogleMap(
+                        initialCameraPosition: CameraPosition(
+                          target:
+                              _selectedLocation ??
+                              const LatLng(20.5937, 78.9629),
+                          zoom: _selectedLocation != null ? 15.0 : 4.0,
+                        ),
+                        onMapCreated: (controller) =>
+                            _googleMapController = controller,
+                        onTap: (point) {
+                          setState(() {
+                            _selectedLocation = point;
+                            _cachedLocation = point;
+                          });
+                        },
+                        markers: _selectedLocation != null
+                            ? {
+                                Marker(
+                                  markerId: const MarkerId('pickup_location'),
+                                  position: _selectedLocation!,
+                                  icon: BitmapDescriptor.defaultMarkerWithHue(
+                                    BitmapDescriptor.hueRed,
+                                  ),
+                                  infoWindow: const InfoWindow(
+                                    title: 'Pickup Location',
+                                  ),
+                                ),
+                              }
+                            : {},
+                        myLocationEnabled: true,
+                        myLocationButtonEnabled: false,
+                        zoomControlsEnabled: false,
+                        mapToolbarEnabled: false,
+                        compassEnabled: true,
+                        mapType: MapType.normal,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _selectedLocation != null
+                                ? '📍 ${_selectedLocation!.latitude.toStringAsFixed(4)}, ${_selectedLocation!.longitude.toStringAsFixed(4)}'
+                                : 'Tap the map to set location',
+                            style: const TextStyle(
+                              color: AppTheme.textMuted,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: _isLocating ? null : _getCurrentLocation,
+                          icon: _isLocating
+                              ? const SpinKitThreeBounce(
+                                  color: AppTheme.primary,
+                                  size: 14,
+                                )
+                              : const Icon(Icons.my_location, size: 16),
+                          label: Text(_isLocating ? 'Locating...' : 'Use GPS'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // ── Submit ──
+            SizedBox(
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: _isSubmitting ? null : _submit,
+                icon: _isSubmitting
+                    ? const SpinKitThreeBounce(color: Colors.white, size: 18)
+                    : const Icon(Icons.send, size: 20),
+                label: Text(
+                  _isSubmitting ? 'Submitting...' : 'Submit Donation',
                 ),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 40),
+          ],
         ),
       ),
     );

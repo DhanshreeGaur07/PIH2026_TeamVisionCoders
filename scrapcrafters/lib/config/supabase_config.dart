@@ -1,7 +1,11 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class SupabaseConfig {
-  static const String url = 'https://yteuzaqffybbdfscyhbc.supabase.co';
-  static const String anonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl0ZXV6YXFmZnliYmRmc2N5aGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzMDYxMTksImV4cCI6MjA4Nzg4MjExOX0.7iTvCCz4SZ4OSGpBFVZTVRkzdD-XzbeXUyy1FqFGWNk';
-  static const String apiBaseUrl = 'http://10.0.2.2:8080'; // Android emulator
-  static const String webApiBaseUrl = 'http://localhost:8080'; // Web
+  static String get url =>
+      dotenv.env['SUPABASE_URL'] ?? 'https://yteuzaqffybbdfscyhbc.supabase.co';
+  static String get anonKey => dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+  static String get apiBaseUrl =>
+      dotenv.env['API_BASE_URL'] ?? 'http://10.0.2.2:8080';
+  static String get webApiBaseUrl =>
+      dotenv.env['WEB_API_BASE_URL'] ?? 'http://localhost:8080';
 }
