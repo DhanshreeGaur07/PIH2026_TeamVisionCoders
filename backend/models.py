@@ -77,11 +77,19 @@ class CreateProductRequest(BaseModel):
     price_money: float = 0.0
     image_url: Optional[str] = None
     scrap_type_used: Optional[ScrapType] = None
+    stock_quantity: int = 1
 
 
 class PurchaseProductRequest(BaseModel):
     buyer_id: str
+    quantity: int = 1
     pay_with_coins: bool = True
+
+
+class PurchaseCoinsRequest(BaseModel):
+    user_id: str
+    amount_inr: float
+    coins_purchased: int
 
 
 # ---- Contracts ----
