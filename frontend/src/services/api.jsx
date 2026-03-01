@@ -25,6 +25,7 @@ const toApiItem = (row, overrides = {}) => ({
   views: row.views ?? 0,
   green_coins_reward: row.coins ?? row.green_coins_reward ?? 0,
   images: row.images || (row.image ? [{ url: null, emoji: row.image }] : []),
+  imageUrl: row.imageUrl || null,
   buyer_name: row.buyer_name || null,
   sold_at: row.sold_at || null,
   updated_at: row.updated_at || new Date().toISOString(),

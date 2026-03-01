@@ -52,7 +52,11 @@ const ArtworkDetailPage = ({ artworkId, user, onNavigate, onNavigateBack, onAddT
       <main className="max-w-4xl mx-auto px-4 py-8">
         <div className="grid md:grid-cols-2 gap-8">
           <div className={`rounded-2xl border-2 ${cat.border} ${cat.bg} aspect-square flex items-center justify-center text-8xl overflow-hidden`}>
-            {item.images?.[0]?.url ? <img src={item.images[0].url} alt={item.title} className="w-full h-full object-cover" /> : (CAT_EMOJI[item.category] || "🎨")}
+            {item.imageUrl
+              ? <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
+              : item.images?.[0]?.url
+                ? <img src={item.images[0].url} alt={item.title} className="w-full h-full object-cover" />
+                : (CAT_EMOJI[item.category] || "🎨")}
           </div>
           <div>
             <h1 className="font-display font-black text-2xl text-soil-900 mb-2">{item.title}</h1>

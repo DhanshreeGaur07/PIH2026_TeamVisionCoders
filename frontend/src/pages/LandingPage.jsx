@@ -4,6 +4,73 @@ import {
   Award, Star, Users, Package, ArrowLeft
 } from "lucide-react";
 import { platformStats } from "../data/mockData";
+import heroVideo from "../assets/turn_waste_into_wonder.mp4";
+
+/* ── SDGs Data ── */
+const SDG_DATA = [
+  {
+    icon: "♻️", id: "12",
+    title: "Responsible Consumption",
+    points: [
+      "Promotes waste segregation, reuse, recycling, and upcycling",
+      "Encourages circular economy through buy–sell–transform model",
+      "Reduces landfill waste by treating scrap as a resource",
+      "📌 Core philosophy of Scrap Crafters"
+    ]
+  },
+  {
+    icon: "🌱", id: "11",
+    title: "Sustainable Cities",
+    points: [
+      "Reduces municipal waste burden",
+      "Supports cleaner, greener urban and rural communities",
+      "Encourages local waste collection and reuse ecosystems"
+    ]
+  },
+  {
+    icon: "💼", id: "8",
+    title: "Decent Work & Growth",
+    points: [
+      "Livelihood for Artists (2L+), Rag-pickers & Dealers",
+      "Promotes green jobs and sustainable income models"
+    ]
+  },
+  {
+    icon: "🎨", id: "9",
+    title: "Industry & Innovation",
+    points: [
+      "R&D for Coal tar → brick manufacturing",
+      "Structured e-waste recycling",
+      "Promotes innovation in waste-to-value processes"
+    ]
+  },
+  {
+    icon: "🌍", id: "13",
+    title: "Climate Action",
+    points: [
+      "Reduces carbon footprint by minimizing waste burning",
+      "Promotes reuse before recycling (lower energy)",
+      "Encourages eco-conscious climate responsibility"
+    ]
+  },
+  {
+    icon: "🤝", id: "10",
+    title: "Reduced Inequalities",
+    points: [
+      "Empowers informal waste workers (rag-pickers)",
+      "Provides digital inclusion & fair compensation",
+      "Bridges the gap between creators, industries & collectors"
+    ]
+  },
+  {
+    icon: "🌿", id: "15",
+    title: "Life on Land",
+    points: [
+      "Prevents land pollution caused by improper disposal",
+      "Protects soil and ecosystems from toxic & e-waste"
+    ]
+  }
+];
 
 /* ── Flow step data ── */
 const FLOW_STEPS = [
@@ -103,8 +170,8 @@ const LandingPage = ({ onNavigate, onNavigateBack }) => {
       {/* ───────────── HERO ───────────── */}
       <section className="relative pt-36 pb-24 px-6 overflow-hidden">
         {/* Background video placeholder */}
-        <div className="absolute inset-0 w-full h-full z-0 opacity-20 pointer-events-none">
-          <video autoPlay loop muted playsInline className="w-full h-full object-cover" src="/assets/hero-video.mp4" />
+        <div className="absolute inset-0 w-full h-full z-0 opacity-30 pointer-events-none">
+          <video autoPlay loop muted playsInline className="w-full h-full object-cover" src={heroVideo} />
         </div>
 
         {/* Background decorations */}
@@ -133,7 +200,7 @@ const LandingPage = ({ onNavigate, onNavigateBack }) => {
               className="relative inline-block text-forest-600"
               style={{ WebkitTextStroke: "1px #178040" }}
             >
-              into Worth.
+              into Wonders.
               {/* Underline squiggle */}
               <svg className="absolute -bottom-2 left-0 w-full" height="8" viewBox="0 0 300 8" fill="none" preserveAspectRatio="none">
                 <path d="M0 6 Q75 0 150 5 Q225 10 300 4" stroke="#178040" strokeWidth="2.5" strokeLinecap="round" fill="none" />
@@ -290,6 +357,45 @@ const LandingPage = ({ onNavigate, onNavigateBack }) => {
                 </div>
                 <h3 className="font-display font-bold text-soil-900 mb-2">{title}</h3>
                 <p className="text-sm text-soil-500 leading-relaxed">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ───────────── SDG ALIGNMENT ───────────── */}
+      <section id="sdgs" className="py-24 px-6 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <span className="pill pill-green mb-4 inline-flex"><Globe size={12} /> Global Impact</span>
+            <h2 className="font-display font-black text-4xl sm:text-5xl text-soil-900 mb-4">
+              Aligned with <span className="text-forest-600">UN SDGs</span>
+            </h2>
+            <p className="text-soil-500 max-w-xl mx-auto">
+              Our platform actively contributes to the United Nations Sustainable Development Goals.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {SDG_DATA.map((sdg, i) => (
+              <div key={i} className="card p-6 border border-soil-200 hover:border-forest-200 hover:shadow-lg transition-all bg-soil-50 group">
+                <div className="flex items-center gap-4 mb-5">
+                  <div className="w-14 h-14 rounded-2xl bg-forest-100 text-3xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                    {sdg.icon}
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-forest-600 uppercase tracking-wider block mb-0.5">SDG {sdg.id}</span>
+                    <h3 className="font-display font-bold text-soil-900 text-lg leading-tight">{sdg.title}</h3>
+                  </div>
+                </div>
+                <ul className="space-y-2">
+                  {sdg.points.map((pt, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-sm text-soil-600">
+                      <div className="mt-1.5 min-w-1.5 h-1.5 rounded-full bg-forest-400" />
+                      <span className="leading-snug">{pt}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             ))}
           </div>
