@@ -588,6 +588,25 @@ class _PickupRequestsState extends State<_PickupRequests> {
                                               fontSize: 13,
                                             ),
                                           ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.monetization_on,
+                                                color: Colors.amber,
+                                                size: 14,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Cost: ${((req['weight_kg'] as num) * (ScrapProvider.coinMultipliers[req['scrap_type']] ?? 10)).floor()} Coins',
+                                                style: const TextStyle(
+                                                  color: Colors.amber,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -627,19 +646,114 @@ class _PickupRequestsState extends State<_PickupRequests> {
                                   width: double.infinity,
                                   child: ElevatedButton.icon(
                                     onPressed: () async {
-                                      await scrap.acceptRequest(
-                                        req['id'],
-                                        context.read<AuthProvider>().userId!,
-                                      );
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('Request accepted!'),
-                                            backgroundColor: Colors.green,
-                                          ),
+                                      try {
+                                        await scrap.acceptRequest(
+                                          req['id'],
+                                          context.read<AuthProvider>().userId!,
                                         );
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Request accepted!',
+                                              ),
+                                              backgroundColor: Colors.green,
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (mounted) {
+                                          final errMsg = e
+                                              .toString()
+                                              .replaceAll('Exception: ', '');
+                                          if (errMsg.toLowerCase().contains(
+                                            'insufficient',
+                                          )) {
+                                            showDialog(
+                                              context: context,
+                                              builder: (ctx) => AlertDialog(
+                                                title: const Row(
+                                                  children: [
+                                                    Icon(
+                                                      Icons.warning_amber,
+                                                      color: Colors.orange,
+                                                      size: 28,
+                                                    ),
+                                                    SizedBox(width: 8),
+                                                    Text(
+                                                      'Insufficient Balance',
+                                                    ),
+                                                  ],
+                                                ),
+                                                content: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      errMsg,
+                                                      style: const TextStyle(
+                                                        fontSize: 14,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 12),
+                                                    const Text(
+                                                      'Buy more Scrap Coins from your Wallet to accept this pickup.',
+                                                      style: TextStyle(
+                                                        color: Colors.grey,
+                                                        fontSize: 13,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(ctx),
+                                                    child: const Text('Cancel'),
+                                                  ),
+                                                  ElevatedButton.icon(
+                                                    onPressed: () {
+                                                      Navigator.pop(ctx);
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (_) =>
+                                                              const WalletScreen(),
+                                                        ),
+                                                      );
+                                                    },
+                                                    icon: const Icon(
+                                                      Icons
+                                                          .account_balance_wallet,
+                                                      size: 18,
+                                                    ),
+                                                    label: const Text(
+                                                      'Buy Coins',
+                                                    ),
+                                                    style:
+                                                        ElevatedButton.styleFrom(
+                                                          backgroundColor:
+                                                              Colors.purple,
+                                                          foregroundColor:
+                                                              Colors.white,
+                                                        ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          } else {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text('Error: $errMsg'),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                          }
+                                        }
                                       }
                                     },
                                     icon: const Icon(Icons.check),

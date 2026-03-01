@@ -114,9 +114,12 @@ class ScrapProvider extends ChangeNotifier {
         '/scrap/requests/$requestId/accept',
         body: {'partner_id': partnerId},
       );
-    } finally {
       _isLoading = false;
       notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow; // Re-throw so the UI can show the error dialog
     }
   }
 
