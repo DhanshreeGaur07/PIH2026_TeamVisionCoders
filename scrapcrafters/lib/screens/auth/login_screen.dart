@@ -35,6 +35,8 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+      // Pop all routes back to AuthGate so it can show the dashboard
+      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
       if (mounted)
         setState(() => _error = e.toString().replaceAll('Exception: ', ''));
