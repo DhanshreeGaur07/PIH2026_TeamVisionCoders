@@ -81,8 +81,8 @@ const LandingPage = ({ onNavigate }) => {
             <a href="#how" className="hover:text-forest-600 transition-colors">How It Works</a>
             <a href="#features" className="hover:text-forest-600 transition-colors">Features</a>
             <a href="#impact" className="hover:text-forest-600 transition-colors">Impact</a>
-            <button type="button" onClick={() => onNavigate("artworks")} className="hover:text-forest-600 transition-colors bg-transparent border-0 cursor-pointer text-inherit font-inherit p-0">Artworks</button>
-            <button type="button" onClick={() => onNavigate("collaborations")} className="hover:text-forest-600 transition-colors bg-transparent border-0 cursor-pointer text-inherit font-inherit p-0">Our Collaborations</button>
+            <button type="button" onClick={() => onNavigate("ArtworksPage")} className="hover:text-forest-600 transition-colors bg-transparent border-0 cursor-pointer text-inherit font-inherit p-0">Artworks</button>
+            <button type="button" onClick={() => onNavigate("CollabsPage")} className="hover:text-forest-600 transition-colors bg-transparent border-0 cursor-pointer text-inherit font-inherit p-0">Our Collaborations</button>
           </nav>
 
           {/* Auth buttons */}
