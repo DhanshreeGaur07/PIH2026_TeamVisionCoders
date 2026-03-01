@@ -1,5 +1,10 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/scrap_provider.dart';
 
@@ -16,8 +21,16 @@ class _DonateScrapScreenState extends State<DonateScrapScreen> {
   final _descriptionController = TextEditingController();
   final _addressController = TextEditingController();
 
+  // Static cache: persists across screen rebuilds so GPS isn't re-fetched
+  static LatLng? _cachedLocation;
+  static bool _locationFetched = false;
+
   String _selectedScrapType = 'iron';
   bool _submitted = false;
+  XFile? _imageFile;
+  LatLng? _selectedLocation;
+  bool _isLocating = false;
+  final MapController _mapController = MapController();
 
   final List<Map<String, dynamic>> _scrapTypes = [
     {
@@ -65,11 +78,77 @@ class _DonateScrapScreenState extends State<DonateScrapScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // Restore cached location if available, otherwise auto-fetch once
+    if (_cachedLocation != null) {
+      _selectedLocation = _cachedLocation;
+    } else if (!_locationFetched) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _getCurrentLocation();
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _weightController.dispose();
     _descriptionController.dispose();
     _addressController.dispose();
     super.dispose();
+  }
+
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isLocating = true);
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) throw 'Location services are disabled.';
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw 'Location permissions are denied';
+        }
+      }
+      if (permission == LocationPermission.deniedForever) {
+        throw 'Location permissions are permanently denied.';
+      }
+
+      Position? position;
+      try {
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 5),
+        );
+      } catch (e) {
+        // Fallback for emulators or spots where getting a fix hangs
+        position = await Geolocator.getLastKnownPosition();
+      }
+
+      if (position == null) {
+        throw 'Location unavailable. Make sure GPS is enabled and mocked on emulator.';
+      }
+
+      final pt = LatLng(position.latitude, position.longitude);
+      // Cache for future screen visits
+      _cachedLocation = pt;
+      _locationFetched = true;
+      setState(() {
+        _selectedLocation = pt;
+        _isLocating = false;
+      });
+      try {
+        _mapController.move(pt, 15.0);
+      } catch (_) {}
+    } catch (e) {
+      setState(() => _isLocating = false);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not get location: $e')));
+      }
+    }
   }
 
   int get _estimatedCoins {
@@ -80,12 +159,40 @@ class _DonateScrapScreenState extends State<DonateScrapScreen> {
     return (weight * (type['coins'] as int)).floor();
   }
 
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+    );
+    if (picked != null) {
+      setState(() => _imageFile = picked);
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a pickup location on the map'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     final auth = context.read<AuthProvider>();
 
     try {
+      Uint8List? imageBytes;
+      String? imageExt;
+
+      if (_imageFile != null) {
+        imageBytes = await _imageFile!.readAsBytes();
+        imageExt = _imageFile!.name.split('.').last;
+      }
+
       await context.read<ScrapProvider>().donateScrap(
         userId: auth.userId!,
         scrapType: _selectedScrapType,
@@ -96,6 +203,10 @@ class _DonateScrapScreenState extends State<DonateScrapScreen> {
         pickupAddress: _addressController.text.isEmpty
             ? null
             : _addressController.text,
+        latitude: _selectedLocation!.latitude,
+        longitude: _selectedLocation!.longitude,
+        imageBytes: imageBytes,
+        imageExt: imageExt,
       );
 
       setState(() => _submitted = true);
@@ -117,6 +228,8 @@ class _DonateScrapScreenState extends State<DonateScrapScreen> {
     _addressController.clear();
     setState(() {
       _selectedScrapType = 'iron';
+      _imageFile = null;
+      _selectedLocation = null;
       _submitted = false;
     });
   }
@@ -307,16 +420,188 @@ class _DonateScrapScreenState extends State<DonateScrapScreen> {
                   prefixIcon: Icon(Icons.description),
                 ),
               ),
+              const SizedBox(height: 24),
+
+              Text(
+                'Pickup Location (Required)',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+
+              Container(
+                height: 250,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade300, width: 2),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Stack(
+                    children: [
+                      FlutterMap(
+                        mapController: _mapController,
+                        options: MapOptions(
+                          initialCenter:
+                              _selectedLocation ??
+                              const LatLng(28.6139, 77.2090),
+                          initialZoom: 13.0,
+                          onTap: (tapPosition, point) {
+                            setState(() => _selectedLocation = point);
+                          },
+                        ),
+                        children: [
+                          TileLayer(
+                            urlTemplate:
+                                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            userAgentPackageName: 'com.example.scrapcrafters',
+                          ),
+                          if (_selectedLocation != null)
+                            MarkerLayer(
+                              markers: [
+                                Marker(
+                                  point: _selectedLocation!,
+                                  width: 40,
+                                  height: 40,
+                                  child: const Icon(
+                                    Icons.location_pin,
+                                    color: Colors.blueAccent,
+                                    size: 40,
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                      Positioned(
+                        right: 12,
+                        bottom: 12,
+                        child: FloatingActionButton(
+                          mini: true,
+                          heroTag: 'map_fab',
+                          backgroundColor: Colors.white,
+                          child: _isLocating
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.my_location,
+                                  color: Colors.blueAccent,
+                                ),
+                          onPressed: _getCurrentLocation,
+                        ),
+                      ),
+                      if (_selectedLocation == null)
+                        IgnorePointer(
+                          child: Container(
+                            color: Colors.black26,
+                            child: const Center(
+                              child: Text(
+                                'Tap map to drop pin',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 14),
 
               TextFormField(
                 controller: _addressController,
                 decoration: const InputDecoration(
-                  labelText: 'Pickup Address',
+                  labelText: 'Detailed Address (Flat no, Street)',
                   prefixIcon: Icon(Icons.location_on_outlined),
                 ),
               ),
               const SizedBox(height: 24),
+
+              Text(
+                'Add Photo (Optional)',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+
+              GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  width: double.infinity,
+                  height: 150,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.grey.shade300,
+                      width: 2,
+                      style: BorderStyle.solid,
+                    ),
+                  ),
+                  child: _imageFile != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.network(
+                                _imageFile!.path,
+                                fit: BoxFit.cover,
+                                errorBuilder: (ctx, err, _) => const Center(
+                                  child: Icon(Icons.broken_image),
+                                ),
+                              ),
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: CircleAvatar(
+                                  backgroundColor: Colors.white,
+                                  radius: 16,
+                                  child: IconButton(
+                                    padding: EdgeInsets.zero,
+                                    icon: const Icon(
+                                      Icons.close,
+                                      size: 18,
+                                      color: Colors.red,
+                                    ),
+                                    onPressed: () =>
+                                        setState(() => _imageFile = null),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.add_a_photo,
+                              size: 48,
+                              color: Colors.grey.shade400,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Tap to upload image',
+                              style: TextStyle(color: Colors.grey.shade600),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+
+              const SizedBox(height: 32),
 
               SizedBox(
                 width: double.infinity,

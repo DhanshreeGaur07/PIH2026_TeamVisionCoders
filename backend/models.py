@@ -27,6 +27,8 @@ class SignupRequest(BaseModel):
     name: str
     phone: Optional[str] = None
     location: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     role: UserRole = UserRole.user
     organization_name: Optional[str] = None
 
@@ -43,6 +45,8 @@ class DonateScrapRequest(BaseModel):
     weight_kg: float
     description: Optional[str] = None
     pickup_address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     image_url: Optional[str] = None
 
 

@@ -31,6 +31,8 @@ async def signup(req: SignupRequest):
             "email": req.email,
             "phone": req.phone,
             "location": req.location,
+            "latitude": req.latitude,
+            "longitude": req.longitude,
             "role": req.role.value,
             "scrap_coins": 0,
         }
@@ -92,7 +94,7 @@ async def get_profile(user_id: str):
 @router.put("/profile/{user_id}")
 async def update_profile(user_id: str, data: dict):
     try:
-        allowed_fields = ["name", "phone", "location", "avatar_url", "organization_name"]
+        allowed_fields = ["name", "phone", "location", "latitude", "longitude", "avatar_url", "organization_name"]
         update_data = {k: v for k, v in data.items() if k in allowed_fields}
 
         result = supabase_admin.table("profiles").update(update_data).eq(

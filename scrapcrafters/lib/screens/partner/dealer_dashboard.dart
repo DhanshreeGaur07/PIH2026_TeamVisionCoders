@@ -356,125 +356,183 @@ class _PickupRequests extends StatefulWidget {
 }
 
 class _PickupRequestsState extends State<_PickupRequests> {
+  String _selectedFilter = 'all';
+
   @override
   void initState() {
     super.initState();
-    context.read<ScrapProvider>().fetchAvailableRequests();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<ScrapProvider>().fetchAvailableRequests(
+          context.read<AuthProvider>().userId!,
+        );
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final scrap = context.watch<ScrapProvider>();
 
+    final filteredRequests = _selectedFilter == 'all'
+        ? scrap.availableRequests
+        : scrap.availableRequests
+              .where((r) => r['scrap_type'] == _selectedFilter)
+              .toList();
+
     return Scaffold(
       appBar: AppBar(title: const Text('Pickup Requests')),
-      body: RefreshIndicator(
-        onRefresh: () => scrap.fetchAvailableRequests(),
-        child: scrap.isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : scrap.availableRequests.isEmpty
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.inbox, size: 64, color: Colors.grey[400]),
-                    const SizedBox(height: 12),
-                    Text(
-                      'No pending requests',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 16),
-                    ),
-                  ],
-                ),
-              )
-            : ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: scrap.availableRequests.length,
-                itemBuilder: (context, i) {
-                  final req = scrap.availableRequests[i];
-                  final user = req['profiles'] as Map<String, dynamic>?;
-
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
+      body: Column(
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children:
+                  [
+                    'all',
+                    'iron',
+                    'plastic',
+                    'copper',
+                    'glass',
+                    'ewaste',
+                    'other',
+                  ].map((type) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: ChoiceChip(
+                        label: Text(type.toUpperCase()),
+                        selected: _selectedFilter == type,
+                        onSelected: (selected) {
+                          if (selected) setState(() => _selectedFilter = type);
+                        },
+                        selectedColor: Colors.green.withOpacity(0.2),
+                      ),
+                    );
+                  }).toList(),
+            ),
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => scrap.fetchAvailableRequests(
+                context.read<AuthProvider>().userId!,
+              ),
+              child: scrap.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : filteredRequests.isEmpty
+                  ? Center(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                backgroundColor: Colors.green.shade50,
-                                child: const Icon(
-                                  Icons.recycling,
-                                  color: Colors.green,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      '${req['scrap_type'].toString().toUpperCase()} - ${req['weight_kg']}kg',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                    Text(
-                                      'From: ${user?['name'] ?? 'Unknown'} • ${user?['location'] ?? ''}',
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (req['description'] != null) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              req['description'],
-                              style: TextStyle(color: Colors.grey[700]),
-                            ),
-                          ],
-                          if (req['pickup_address'] != null) ...[
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.location_on,
-                                  size: 14,
-                                  color: Colors.grey[500],
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  req['pickup_address'],
-                                  style: TextStyle(
-                                    color: Colors.grey[500],
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                          Icon(Icons.inbox, size: 64, color: Colors.grey[400]),
                           const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: () => _accept(req['id']),
-                              icon: const Icon(Icons.check),
-                              label: const Text('Accept Pickup'),
+                          Text(
+                            'No pending requests for this filter',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 16,
                             ),
                           ),
                         ],
                       ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: filteredRequests.length,
+                      itemBuilder: (context, i) {
+                        final req = filteredRequests[i];
+                        final user = req['profiles'] as Map<String, dynamic>?;
+
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    CircleAvatar(
+                                      backgroundColor: Colors.green.shade50,
+                                      child: const Icon(
+                                        Icons.recycling,
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${req['scrap_type'].toString().toUpperCase()} - ${req['weight_kg']}kg',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                          Text(
+                                            'From: ${user?['name'] ?? 'Unknown'} • ${user?['location'] ?? ''}',
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (req['description'] != null) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    req['description'],
+                                    style: TextStyle(color: Colors.grey[700]),
+                                  ),
+                                ],
+                                if (req['pickup_address'] != null) ...[
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.location_on,
+                                        size: 14,
+                                        color: Colors.grey[500],
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        req['pickup_address'],
+                                        style: TextStyle(
+                                          color: Colors.grey[500],
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _accept(req['id']),
+                                    icon: const Icon(Icons.check),
+                                    label: const Text('Accept Pickup'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
+            ),
+          ),
+        ],
       ),
     );
   }

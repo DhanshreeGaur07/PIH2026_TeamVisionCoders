@@ -14,13 +14,16 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
   }
 
   void _loadData() {
     final auth = context.read<AuthProvider>();
     if (auth.userId != null) {
       context.read<CoinProvider>().fetchBalance(auth.userId!);
+      context.read<CoinProvider>().fetchPendingCoins(auth.userId!);
       context.read<CoinProvider>().fetchTransactions(auth.userId!);
     }
   }
@@ -77,6 +80,37 @@ class _WalletScreenState extends State<WalletScreen> {
                     'Scrap Coins',
                     style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
+                  if (coins.pendingCoins > 0) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.hourglass_empty,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '+${coins.pendingCoins} Pending',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -1,8 +1,11 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/api_service.dart';
 
 class ScrapProvider extends ChangeNotifier {
   final _supabase = Supabase.instance.client;
+  RealtimeChannel? _requestsChannel;
 
   List<Map<String, dynamic>> _myRequests = [];
   List<Map<String, dynamic>> _availableRequests = [];
@@ -28,19 +31,37 @@ class ScrapProvider extends ChangeNotifier {
     required double weightKg,
     String? description,
     String? pickupAddress,
+    double? latitude,
+    double? longitude,
+    Uint8List? imageBytes,
+    String? imageExt,
   }) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      await _supabase.from('scrap_requests').insert({
-        'user_id': userId,
-        'scrap_type': scrapType,
-        'weight_kg': weightKg,
-        'description': description,
-        'pickup_address': pickupAddress,
-        'status': 'pending',
-      });
+      String? imageUrl;
+
+      if (imageBytes != null && imageExt != null) {
+        final fileName = '${DateTime.now().millisecondsSinceEpoch}.$imageExt';
+        final path = '$userId/$fileName';
+
+        await _supabase.storage.from('images').uploadBinary(path, imageBytes);
+        imageUrl = _supabase.storage.from('images').getPublicUrl(path);
+      }
+
+      await ApiService.post(
+        '/scrap/donate?user_id=$userId',
+        body: {
+          'scrap_type': scrapType,
+          'weight_kg': weightKg,
+          'description': description,
+          'pickup_address': pickupAddress,
+          'latitude': latitude,
+          'longitude': longitude,
+          'image_url': imageUrl,
+        },
+      );
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -58,25 +79,27 @@ class ScrapProvider extends ChangeNotifier {
           .eq('user_id', userId)
           .order('created_at', ascending: false);
       _myRequests = List<Map<String, dynamic>>.from(data);
+
+      _setupRealtime(userId: userId);
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> fetchAvailableRequests() async {
+  Future<void> fetchAvailableRequests(String partnerId) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      final data = await _supabase
-          .from('scrap_requests')
-          .select(
-            '*, profiles!scrap_requests_user_id_fkey(name, location, phone)',
-          )
-          .eq('status', 'pending')
-          .order('created_at', ascending: false);
-      _availableRequests = List<Map<String, dynamic>>.from(data);
+      final response = await ApiService.get(
+        '/scrap/requests/available?partner_id=$partnerId',
+      );
+      _availableRequests = List<Map<String, dynamic>>.from(response);
+
+      _setupRealtime(partnerId: partnerId, forPartners: true);
+    } catch (e) {
+      print('Error fetching requests: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -84,84 +107,38 @@ class ScrapProvider extends ChangeNotifier {
   }
 
   Future<void> acceptRequest(String requestId, String partnerId) async {
-    await _supabase
-        .from('scrap_requests')
-        .update({'partner_id': partnerId, 'status': 'accepted'})
-        .eq('id', requestId);
-    await fetchAvailableRequests();
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await ApiService.put(
+        '/scrap/requests/$requestId/accept',
+        body: {'partner_id': partnerId},
+      );
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<Map<String, dynamic>> completeRequest(
     String requestId,
     String partnerId,
   ) async {
-    // Get request details
-    final req = await _supabase
-        .from('scrap_requests')
-        .select('*')
-        .eq('id', requestId)
-        .single();
-
-    final scrapType = req['scrap_type'] as String;
-    final weightKg = double.parse(req['weight_kg'].toString());
-    final userId = req['user_id'] as String;
-
-    // Calculate coins
-    final multiplier = coinMultipliers[scrapType] ?? 10;
-    final coinsEarned = (weightKg * multiplier).floor();
-
-    // Update request
-    await _supabase
-        .from('scrap_requests')
-        .update({'status': 'completed', 'coins_awarded': coinsEarned})
-        .eq('id', requestId);
-
-    // Update user coins
-    final profile = await _supabase
-        .from('profiles')
-        .select('scrap_coins')
-        .eq('id', userId)
-        .single();
-    final newBalance = (profile['scrap_coins'] as int) + coinsEarned;
-
-    await _supabase
-        .from('profiles')
-        .update({'scrap_coins': newBalance})
-        .eq('id', userId);
-
-    // Record transaction
-    await _supabase.from('transactions').insert({
-      'user_id': userId,
-      'amount': coinsEarned,
-      'type': 'donation_reward',
-      'reference_id': requestId,
-      'description':
-          'Earned $coinsEarned coins for donating ${weightKg}kg of $scrapType',
-    });
-
-    // Update dealer inventory
-    final existing = await _supabase
-        .from('dealer_inventory')
-        .select('*')
-        .eq('dealer_id', partnerId)
-        .eq('scrap_type', scrapType);
-
-    if ((existing as List).isNotEmpty) {
-      final newQty =
-          double.parse(existing[0]['quantity_kg'].toString()) + weightKg;
-      await _supabase
-          .from('dealer_inventory')
-          .update({'quantity_kg': newQty})
-          .eq('id', existing[0]['id']);
-    } else {
-      await _supabase.from('dealer_inventory').insert({
-        'dealer_id': partnerId,
-        'scrap_type': scrapType,
-        'quantity_kg': weightKg,
-      });
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final response = await ApiService.put(
+        '/scrap/requests/$requestId/complete',
+        body: {'partner_id': partnerId},
+      );
+      return {
+        'coins_earned': response['coins_earned'],
+        'new_balance': response['new_balance'],
+      };
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    return {'coins_earned': coinsEarned, 'new_balance': newBalance};
   }
 
   Future<List<Map<String, dynamic>>> fetchAcceptedRequests(
@@ -186,5 +163,34 @@ class ScrapProvider extends ChangeNotifier {
         .select('*')
         .eq('dealer_id', dealerId);
     return List<Map<String, dynamic>>.from(data);
+  }
+
+  void _setupRealtime({
+    String? userId,
+    String? partnerId,
+    bool forPartners = false,
+  }) {
+    _requestsChannel?.unsubscribe();
+
+    _requestsChannel =
+        _supabase
+            .channel('public:scrap_requests')
+            .onPostgresChanges(
+              event: PostgresChangeEvent.all,
+              schema: 'public',
+              table: 'scrap_requests',
+              callback: (payload) {
+                if (userId != null) fetchMyRequests(userId);
+                if (forPartners && partnerId != null)
+                  fetchAvailableRequests(partnerId);
+              },
+            )
+          ..subscribe();
+  }
+
+  @override
+  void dispose() {
+    _requestsChannel?.unsubscribe();
+    super.dispose();
   }
 }
